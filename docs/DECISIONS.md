@@ -47,14 +47,11 @@ apps, and large backend infrastructure.
 - **Status:** Accepted scope
 
 M0 proves joining and the public/private device shape without role logic. M1
-implements one Murderer with all remaining players Civilian and the smallest
-complete social game loop. Doctor and Sheriff are the only planned additions
-for M2. No later roles are in scope.
+implements the complete initial ruleset with host-configurable counts of
+Murderers, Doctors, Sheriffs, and Civilians. No additional roles are in scope.
+The first real social playtest follows M1 before any role expansion.
 
-The Doctor's self-protection/repeated-protection behavior and the tied-vote
-outcome remain hypotheses, not decisions. The recommendation to place the first
-social playtest between M1 and M2 is recorded in the status and audit documents,
-not as an accepted decision.
+This entry supersedes the earlier one-Murderer/Civilian-first sequence.
 
 ## D-005 — M0a web architecture
 
@@ -130,3 +127,30 @@ existing players without duplication.
 
 M0 provides no unlock/reset flow and does not treat locking as gameplay start.
 A host creates a fresh room when onboarding must restart.
+
+## D-010 — Initial playtest game rules and privacy cadence
+
+- **Date:** 2026-09-17
+- **Status:** Accepted for the first playtest
+
+Each special-role team performs one collective action per night. An action
+exists only when every living member of that team selected the same valid
+target by the fixed deadline; missing or disagreeing selections produce no
+effect or result. A current selection counts at the deadline even without
+confirmation, while confirmation locks that player's choice.
+
+Doctors may protect any living player, including themselves, and may repeat a
+target on later nights. Sheriffs receive an exact-role result only inside a
+short private night-result window. Eliminated roles remain secret until the
+game ends. Voting treats no selection as abstention and eliminates nobody when
+the highest count is tied.
+
+Non-Murderers win when no living Murderers remain. Murderers win only when
+living Murderers are strictly greater than all living non-Murderers combined;
+equality does not win automatically.
+
+Night and voting use fixed durations and never end early because players have
+acted. The host exposes no completion progress, consensus, selections, or
+ballots. During daytime phases all living phones use the same secret-free
+presentation; eliminated players receive no new team or action information.
+These rules are deliberately provisional until the first social playtest.

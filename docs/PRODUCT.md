@@ -35,9 +35,9 @@ The first product question is not whether a large platform can be built; it is
 whether software facilitation preserves and strengthens the face-to-face social
 game.
 
-M1 intentionally starts with one Murderer and otherwise Civilian players. A
-real social playtest follows M1. Doctor and Sheriff belong to M2 only if there
-is evidence to continue.
+M1 implements the complete initial four-role ruleset with host-configurable
+counts for Murderers, Doctors, Sheriffs, and Civilians. A real social playtest
+follows M1 before any role expansion or broader platform work.
 
 ## Initial role direction
 
@@ -46,12 +46,16 @@ is evidence to continue.
 - **Sheriff:** privately investigates another player.
 - **Civilian:** relies on observation, discussion, and voting.
 
-The initial role set is not permission to add more roles. The following are
-unresolved rule hypotheses, not fixed decisions:
+The initial role set is not permission to add more roles. For the first
+playtest, Doctors may protect themselves and repeat protection, and a tied
+highest vote eliminates nobody. These are accepted initial-playtest rules, not
+permanent product commitments.
 
-- the Doctor may protect themselves;
-- the Doctor may protect the same player repeatedly; and
-- a tied elimination vote eliminates nobody.
+Each special-role team performs one collective night action. Every living team
+member must select the same valid target for the action to take effect. Night
+and voting use fixed deadlines so public timing does not reveal when a team or
+individual finished. During public daytime phases, every living phone uses the
+same role-neutral, secret-free presentation.
 
 ## Hidden-information requirement
 

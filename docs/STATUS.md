@@ -1,14 +1,14 @@
 # Project Dashboard
 
 - **Updated:** 2026-09-17
-- **Phase:** M0 complete; M1 ready
-- **Implementation state:** Multiplayer onboarding and roster lock verified
+- **Phase:** First real social playtest
+- **Implementation state:** M1 implemented and technically verified
 
 ## Current objective
 
-Begin M1 as one focused implementation task: the smallest complete Murder game
-with one Murderer and otherwise Civilians. Preserve M0's server authority and
-recipient-specific projections; do not add Doctor or Sheriff yet.
+Run the implemented four-role game with real people and learn whether it
+creates useful face-to-face discussion without unacceptable interaction leaks,
+confusion, timing friction, or local-network problems.
 
 ## Milestones
 
@@ -18,9 +18,8 @@ recipient-specific projections; do not add Doctor or Sheriff yet.
 | M0a — Room and join foundation | Runnable host/player/server, rooms, names, lobby sync, reconnect | Complete |
 | M0b — QR joining and LAN acceptance | Local QR, manual fallback, and real-phone same-Wi-Fi join | Complete |
 | M0 — Multiplayer skeleton | Name, temporary photo, public lobby, reconnect, start/lock | Complete |
-| M1 — Minimal playable Murder | Murderer + Civilians through night, discussion, vote, elimination, and result | Not started |
-| First real social playtest | Test social behavior, leakage, usability, and desire for another round | Not started |
-| M2 — Doctor + Sheriff | Add the initial special-role actions and resolution rules | Not started; gated by M1 playtest |
+| M1 — Complete initial playable ruleset | Configurable Murderers, Doctors, Sheriffs, and Civilians through a complete game | Complete |
+| First real social playtest | Test social behavior, leakage, usability, and desire for another round | Next |
 
 ## Current status
 
@@ -64,6 +63,30 @@ recipient-specific projections; do not add Doctor or Sheriff yet.
   changes, keeps the roster fixed, and still permits valid existing-player
   reconnects without duplication. Phones receive only their own minimal state
   and the room status.
+- After lock, the host configures exact counts of Murderers, Doctors, Sheriffs,
+  and Civilians. The server rejects totals that do not match the roster, games
+  without both sides, and configurations where Murderers already outnumber all
+  non-Murderers.
+- A focused server game engine owns random exact role assignment, legal
+  targets, full living-team consensus, Doctor protection, Sheriff
+  investigation, private voting, elimination, round progression, and strict
+  win checks. Clocks, randomness, and scheduling are injected for deterministic
+  tests without introducing a generic role or state-machine framework.
+- The complete loop is implemented: night actions → private Sheriff result →
+  public morning outcome → untimed discussion → host-started private voting →
+  public vote outcome → next night or final result.
+- Night and voting last 30 seconds. Sheriff result, morning, and vote result
+  each last 6 seconds. Phases never advance early when everyone acts.
+- Current unconfirmed selections count at the deadline; confirming locks the
+  choice. Missing/disagreeing special-role selections produce no team action,
+  no vote is an abstention, and tied highest votes eliminate nobody.
+- Public host and recipient-specific phone projections are constructed
+  separately. Active host payloads contain no roles, targets, consensus,
+  Sheriff results, or ballots. Living daytime phone projections are identical
+  and secret-free; eliminated phones receive no later team/action information.
+  Final roles are exposed only by the authoritative result projection.
+- Game reconnects preserve identity and the currently authorized view,
+  including that player's active selection/confirmation state.
 - A physical phone camera photo was uploaded from the uncommitted local build,
   appeared correctly oriented on the host, and remained visible when the host
   locked the roster. Independent browser checks verified pre-lock refresh,
@@ -74,7 +97,6 @@ recipient-specific projections; do not add Doctor or Sheriff yet.
   phone.
 - Morder uses ports 5183 (host), 5184 (player), and 3101 (server), avoiding the
   active Buzz development stack on 5173/5174/3001.
-- All gameplay remains unimplemented.
 - The [Morder Development GitHub Project](https://github.com/users/DJNOP/projects/3)
   provides a concise `Done` / `Now` / `Next` / `Later` visual roadmap linked to
   this repository. This document remains the detailed source of truth.
@@ -85,50 +107,50 @@ recipient-specific projections; do not add Doctor or Sheriff yet.
 | --- | --- |
 | Dependency install | `npm.cmd install` completed; 91 packages audited, 0 vulnerabilities reported. |
 | Type safety | `npm.cmd run typecheck` passed for all four workspaces. |
-| Automated tests | `npm.cmd test` passed: 3 controller photo tests, 1 host QR test, 25 server/domain/integration tests, and 6 shared tests (35 total). |
+| Automated tests | `npm.cmd test` passed: 3 controller tests, 1 host test, 44 server/domain/integration tests, and 6 shared tests (54 total). |
 | Production build | `npm.cmd run build` passed for shared, server, host, and controller. |
 | Root development command | `npm.cmd run dev` launched server, host, and player services on the documented ports. |
 | Windows launcher lifecycle | Verified stopped → Start → duplicate Start → Stop → harmless Stop → Start again. The host opened at `http://localhost:5183/`, all three endpoints responded, session metadata was cleaned, all Morder ports were released, and an unrelated Node process remained running. |
-| Live smoke | `npm.cmd run smoke` passed against running services: both pages, two isolated rooms, five-player lobby, photo upload/replacement, photo-preserving reconnect, roster lock, rejected new join, and rejected post-lock photo change. |
-| Browser flow | Independently verified join, pre-lock refresh without duplication, live lock notification, post-lock refresh/reconnect, locked waiting UI, and clear rejection of a separate new-browser join. |
-| Physical phone/LAN | Verified from the uncommitted local working copy: a real phone scanned the QR, joined over Wi-Fi, captured/uploaded a correctly oriented camera photo, appeared with that photo on the host, and remained present when the roster was locked. |
+| Live smoke | `npm.cmd run smoke` passed against the running local services: M0 onboarding plus the production-timed four-role loop, private Sheriff result, public secret absence, night resolution, daytime, private voting, mid-vote reconnect, elimination, winner, and final reveal. |
+| Browser flow | Independently completed a four-player game across isolated browser origins, including the advertised LAN URL. A second two-player run verified invalid setup feedback, active-night reconnect, tied unconfirmed selections returning to a new round without elimination, unique unconfirmed votes counting at the deadline, elimination, and final result. |
+| Physical phone/LAN | The earlier M0 physical check remains valid: a real phone scanned the QR, joined over Wi-Fi, uploaded a camera photo, and appeared on the host. The complete M1 game has not yet been played on physical phones; that is part of the next social playtest. |
 
 ## Next task
 
-### M1 — Minimal playable Murder
+### First real social playtest
 
-**Purpose:** Test whether Morder's smallest complete Murder loop creates the
-intended face-to-face social experience.
+**Purpose:** Find out whether the technically complete game works socially with
+real people in one room.
 
 **Scope:**
 
-- assign exactly one Murderer and make all remaining players Civilians;
-- privately reveal each player's own role;
-- run server-authoritative night selection and resolution, public discussion,
-  private voting, elimination, win checks, and repeat/result transitions;
-- eliminate nobody on a tied vote for this first implementation; and
-- keep every secret out of the public host and unauthorized player payloads.
+- play at least one complete game with real people using the shared screen and
+  physical phones;
+- observe comprehension, local-network reliability, camera/photo friction,
+  timing, discussion quality, voting flow, and desire for another round;
+- specifically watch whether phone use, screen brightness, tap count, reactions,
+  or eliminated-player behavior reveals roles; and
+- record evidence and concrete follow-up decisions without expanding roles
+  during the playtest task.
 
 **Constraints:**
 
-- no Doctor, Sheriff, later roles, accounts, persistence, matchmaking, timers,
-  role plugins, or generalized game platform;
-- server owns complete state and emits explicit public-host and per-player
-  projections; and
-- stop once the minimal loop is ready for the first real social playtest.
+- no new roles, generalized rules system, accounts, persistence, matchmaking,
+  deployment, or speculative polish;
+- use the actual local repository and physical devices on the same network;
+  and
+- treat observations as evidence, not automatic feature commitments.
 
 **Acceptance checks:**
 
-- the locked roster can start one complete game;
-- each player receives only their own role/action state;
-- only the Murderer can submit a valid night target;
-- the host receives only public phase/outcome information;
-- private votes resolve correctly, including no elimination on a tie;
-- elimination and win conditions end or continue the game correctly; and
-- focused domain, projection, integration, and browser checks pass.
+- at least one complete physical-device game reaches a final result;
+- notable confusion, friction, leaks, and social reactions are recorded;
+- participants' willingness to play another round is captured; and
+- the next concrete task is chosen from playtest evidence.
 
-**Stop condition:** Stop after the one-Murderer/Civilian loop is verified and
-ready for the first social playtest. Do not add Doctor or Sheriff.
+**Stop condition:** Stop after recording the playtest findings and selecting
+one evidence-backed next task. Do not implement fixes or add roles in the same
+task.
 
 ## Decisions
 
@@ -152,25 +174,24 @@ Only deliberate decisions are summarized here. Full records are in
   server, kept only in room memory, and fetched separately from lobby state.
 - Roster lock is a one-way server-owned transition that rejects new joins and
   photo changes while preserving valid reconnects.
-- M1 uses one Murderer and otherwise Civilians; M2 is limited to Doctor and
-  Sheriff additions.
+- M1 uses host-configurable Murderer, Doctor, Sheriff, and Civilian counts and
+  is followed immediately by the first real social playtest.
 
 ## Open questions
 
-- What minimum and maximum player counts should M1 support?
+- What practical minimum and maximum player counts work socially for this
+  configurable ruleset?
 - When should a host be allowed to remove an abandoned lobby identity?
 - Should host refresh close the room initially, or is host recovery required
   before the first social playtest?
 - Is the current 512 px / 400 KiB photo treatment and initial fallback
   sufficient across the phones used in the first social playtest?
-- What neutral night interaction should Civilians perform so phone use does not
-  reveal special roles?
-- Should night phases use a fixed timer, a hidden completion delay, or another
-  cadence that does not reveal the final actor?
-- Are Doctor self-protection, repeated protection, and no elimination on a tied
-  vote the right initial rules?
-- How should disconnected or absent players affect actions, voting, and win
-  conditions once gameplay exists?
+- Does the shared fixed night shell sufficiently limit role leakage, or do
+  Civilians need a more active neutral interaction?
+- Are Doctor self-protection, repeated protection, full-team consensus, and no
+  elimination on a tied vote good social rules in practice?
+- Should disconnected or absent living players continue to block team
+  consensus and remain eligible voters, as they do in the current prototype?
 
 ## Ideas / later
 

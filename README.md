@@ -8,7 +8,8 @@ phone for private information and actions.
 
 ## Current state
 
-M0, the multiplayer and onboarding skeleton, is complete:
+M1, the complete initial four-role ruleset, is implemented and technically
+verified:
 
 - one command starts the host, phone/player client, and Socket.IO server;
 - Windows launchers start the stack, open the host when it is ready, and stop
@@ -29,12 +30,28 @@ M0, the multiplayer and onboarding skeleton, is complete:
 - the host receives an explicit public projection while each phone receives
   only its own private session; and
 - the host can authoritatively lock the roster; new joins and photo changes are
-  then rejected while existing players may reconnect; and
+  then rejected while existing players may reconnect;
+- the host configures exact counts of Murderers, Doctors, Sheriffs, and
+  Civilians before starting;
+- the server assigns roles, validates targets, resolves full living-team
+  consensus, applies protection, runs Sheriff investigations, counts private
+  votes, eliminates players, and determines the winner;
+- fixed server-owned timers run night, Sheriff result, morning, voting, and
+  vote result phases without advancing early;
+- the shared screen receives no live roles, targets, consensus, Sheriff result,
+  or ballots; living daytime phones receive the same role-neutral projection;
+- current unconfirmed choices count at the deadline, confirmation locks a
+  choice, abstentions count as no vote, and a tied highest vote eliminates
+  nobody;
+- reconnect restores the current authorized game view and any current personal
+  selection; final roles are revealed on the shared screen only at game end;
+  and
 - host disconnect or server restart closes the ephemeral room and deletes its
   in-memory photos.
 
-There is no gameplay, role, voting, or persistent storage yet. The single next
-task is M1 — Minimal playable Murder.
+The single next task is the first real social playtest. There is still no
+persistent storage, account system, matchmaking, deployment platform, or role
+system beyond the four initial roles.
 
 ## Repository layout
 
@@ -65,9 +82,10 @@ The simplest local workflow is:
 3. Select **Create room**, then let phones scan the displayed QR code.
 4. Each player enters a name, joins, and uses **Take photo** or **Choose photo**.
 5. The player previews and saves the photo; the host lobby updates immediately.
-6. When everyone is present, the host selects **Lock roster**. This fixes the
-   roster but does not start gameplay yet.
-7. Double-click `STOP_MORDER.cmd` when finished.
+6. When everyone is present, the host selects **Lock roster**, configures the
+   four role counts, and selects **Start game**.
+7. Follow the phase instructions on the shared screen and phones.
+8. Double-click `STOP_MORDER.cmd` when finished.
 
 Start uses the existing `npm.cmd run dev` stack and waits until the server,
 host, and phone app are listening before opening the browser. Starting again
@@ -117,9 +135,10 @@ strict TypeScript, Vitest tests, production builds, and the live smoke scenario.
    host.
 7. Take or choose a photo, check the preview, and save it. A player can replace
    it until the host locks the roster.
-8. Select **Lock roster** on the host when onboarding is complete. Existing
-   players can refresh/reconnect afterward, but new players and photo changes
-   are rejected.
+8. Select **Lock roster** on the host when onboarding is complete. Configure
+   the exact role counts, start the game, and follow the phase prompts.
+   Existing players can refresh/reconnect afterward, but new players and photo
+   changes are rejected.
 
 The Socket.IO server listens on `0.0.0.0:3101`; the host and player Vite servers
 listen on `0.0.0.0:5183` and `0.0.0.0:5184`. These Morder-specific ports avoid
@@ -141,21 +160,20 @@ With `npm.cmd run dev` running in one terminal, run in another:
 npm.cmd run smoke
 ```
 
-The smoke scenario checks that both pages respond, two rooms remain isolated,
-five players can join one lobby, binary photo upload/replacement works, a
-disconnected player reconnects with the same photo, and roster locking rejects
-new joins while preserving existing-player reconnect.
+The smoke scenario checks both pages, isolated rooms, five-player onboarding,
+photo upload/replacement, reconnect, roster locking, the complete timed
+four-role loop, private Sheriff result, public projection secrecy, a mid-vote
+reconnect, elimination, winner resolution, and final role reveal. It takes
+about 80 seconds because it uses the production timers.
 
-## Planned validation sequence
+## Validation sequence
 
-1. **M0 — Multiplayer skeleton:** room, QR join, name, temporary photo, public
-   lobby, and host start/lock action.
-2. **M1 — Minimal playable Murder:** one Murderer, remaining players Civilian,
-   server-resolved night, discussion, private vote, elimination, and result.
-3. **First real social playtest:** test whether the basic loop creates useful
-   conversation, suspicion, and desire for another round.
-4. **M2 — Doctor + Sheriff:** add the initial special roles only after the M1
-   playtest provides evidence to continue.
+1. **M0 — Multiplayer skeleton:** complete.
+2. **M1 — Complete initial playable ruleset:** implemented and technically
+   verified with Murderer, Doctor, Sheriff, and Civilian.
+3. **First real social playtest:** next; test social energy, interaction
+   leakage, comprehension, timing, network friction, and desire for another
+   round before expanding scope.
 
 ## Project records
 

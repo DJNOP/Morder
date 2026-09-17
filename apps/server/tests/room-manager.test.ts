@@ -61,7 +61,13 @@ describe("RoomManager", () => {
     const manager = createManager();
     expect(manager.createRoom("host-1")).toEqual({
       ok: true,
-      lobby: { roomCode: "ABCD", roomStatus: "open", players: [] },
+      lobby: {
+        roomCode: "ABCD",
+        roomStatus: "open",
+        players: [],
+        roleSetup: null,
+        game: null,
+      },
     });
     expect(manager.createRoom("host-1")).toMatchObject({
       ok: false,

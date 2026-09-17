@@ -218,29 +218,14 @@ Implement M0 in focused slices. The first is M0a in `docs/STATUS.md`. Follow it
 with QR/LAN joining, then bounded temporary photo handling and the public lobby.
 Finish with a real multi-phone/camera connectivity rehearsal.
 
-### M1 — Keep as the first playable game
+### Current sequence (supersedes the audit's original split)
 
-One Murderer and otherwise Civilians is the right minimum. Build explicit game
-phases and projection functions immediately. Implement role reveal, Murderer
-selection, authoritative resolution, public announcement, discussion timer or
-host advance, private vote, tied-vote behavior as a still-open rule choice,
-elimination, and win checks. Do not prepare Doctor/Sheriff abstractions beyond
-clean focused game rules.
-
-### Insert the first social playtest after M1
-
-This is the important sequencing change. M1 can already answer whether the
-software stays out of the way and whether discussion, accusation, and voting
-feel good. Playtest before adding Doctor and Sheriff. Record interaction
-leakage, QR/photo friction, phase timing, public-screen readability, vote
-clarity, disconnect behavior, and desire for another round.
-
-### M2 — Keep, gated by evidence
-
-Add only Doctor and Sheriff. Resolve Doctor/Murderer interaction on the server
-and deliver Sheriff results only to the Sheriff. Decide self-protection,
-repeated protection, announcement wording, valid targets, and timing from
-explicit rules/playtest evidence. Do not expand the role system.
+The project later deliberately changed M1 to the complete initial playable
+ruleset: host-configurable Murderers, Doctors, Sheriffs, and Civilians. That M1
+is now implemented. The next milestone is the first real social playtest; there
+is no separate Doctor/Sheriff M2 on the roadmap. This historical audit remains
+useful for its Buzz evidence and reuse classifications, not as the current
+project plan.
 
 ## Audit conclusion
 

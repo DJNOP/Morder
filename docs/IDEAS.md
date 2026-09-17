@@ -6,11 +6,12 @@ a deliberate choice make them current.
 
 ## Rules to test
 
-- Allow the Doctor to protect themselves.
-- Allow the Doctor to protect the same player on consecutive nights.
-- Eliminate nobody when the public vote is tied.
-- Decide whether a prevented murder is announced as a save, as no death, or
-  with deliberately ambiguous wording.
+- Test whether Doctor self-protection and repeated protection create useful
+  uncertainty or make protection too strong.
+- Test whether full-team consensus creates coordination or excessive failure.
+- Test whether no elimination on a tied highest vote improves discussion.
+- Keep a prevented murder, disagreement, and missing Murderer selection
+  publicly indistinguishable as simply “nobody died.”
 
 ## Interaction-leakage experiments
 

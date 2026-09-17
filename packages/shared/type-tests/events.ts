@@ -19,7 +19,13 @@ const createRoom: ClientToServerEvents[typeof HOST_CREATE_ROOM_EVENT] = (
 ) =>
   acknowledge({
     ok: true,
-    lobby: { roomCode: "ABCD", roomStatus: "open", players: [] },
+    lobby: {
+      roomCode: "ABCD",
+      roomStatus: "open",
+      players: [],
+      roleSetup: null,
+      game: null,
+    },
   });
 
 const lockRoom: ClientToServerEvents[typeof HOST_LOCK_ROOM_EVENT] = (
@@ -27,7 +33,13 @@ const lockRoom: ClientToServerEvents[typeof HOST_LOCK_ROOM_EVENT] = (
 ) =>
   acknowledge({
     ok: true,
-    lobby: { roomCode: "ABCD", roomStatus: "locked", players: [] },
+    lobby: {
+      roomCode: "ABCD",
+      roomStatus: "locked",
+      players: [],
+      roleSetup: null,
+      game: null,
+    },
   });
 
 const joinRoom: ClientToServerEvents[typeof PLAYER_JOIN_ROOM_EVENT] = (
@@ -80,8 +92,11 @@ const publicLobby: PublicLobbyProjection = {
       displayName: "Ada",
       connectionState: "connected",
       photoVersion: 1,
+      lifeState: "alive",
     },
   ],
+  roleSetup: null,
+  game: null,
 };
 
 const privatePlayerState: PrivatePlayerState = {
@@ -92,7 +107,9 @@ const privatePlayerState: PrivatePlayerState = {
     displayName: "Ada",
     connectionState: "connected",
     photoVersion: 1,
+    lifeState: "alive",
   },
+  game: { phase: "discussion", round: 1 },
 };
 
 void createRoom;

@@ -6,27 +6,36 @@ import type {
 import { Server } from "socket.io";
 import {
   CONNECTION_ROLES,
+  HOST_CONFIGURE_ROLES_EVENT,
   HOST_CREATE_ROOM_EVENT,
   HOST_GET_NETWORK_ADDRESSES_EVENT,
   HOST_LOCK_ROOM_EVENT,
   HOST_LOBBY_STATE_EVENT,
+  HOST_START_GAME_EVENT,
+  HOST_START_VOTING_EVENT,
+  PLAYER_CONFIRM_SELECTION_EVENT,
   PLAYER_PHOTO_UPLOAD_EVENT,
   PLAYER_JOIN_ROOM_EVENT,
   PLAYER_RECONNECT_EVENT,
   PLAYER_ROOM_CLOSED_EVENT,
+  PLAYER_SELECT_TARGET_EVENT,
   PLAYER_STATE_EVENT,
+  isConfigureRolesRequest,
   isConnectionAuth,
   isJoinRoomRequest,
   isPlayerPhotoUploadRequest,
   isReconnectPlayerRequest,
+  isSelectTargetRequest,
   type ClientToServerEvents,
   type CreateRoomResult,
   type HostNetworkAddressesResult,
+  type HostGameCommandResult,
   type InterServerEvents,
   type JoinRoomResult,
   type LocalNetworkAddress,
   type LockRoomResult,
   type PlayerPhotoUploadResult,
+  type PlayerGameCommandResult,
   type ReconnectPlayerResult,
   type ServerToClientEvents,
   type SocketData,
@@ -76,6 +85,22 @@ const notAuthorizedToUploadPhoto: PlayerPhotoUploadResult = {
   error: {
     code: "not_authorized",
     message: "Only a joined player can upload a photo.",
+  },
+};
+
+const notAuthorizedHostGameCommand: HostGameCommandResult = {
+  ok: false,
+  error: {
+    code: "not_authorized",
+    message: "Only the room host can control the game.",
+  },
+};
+
+const notAuthorizedPlayerGameCommand: PlayerGameCommandResult = {
+  ok: false,
+  error: {
+    code: "not_authorized",
+    message: "Only a joined player can make a game selection.",
   },
 };
 
@@ -231,6 +256,43 @@ export const createRealtimeServer = (
       acknowledge(roomManager.lockRoom(socket.id));
     });
 
+    socket.on(HOST_CONFIGURE_ROLES_EVENT, (request, acknowledge) => {
+      if (typeof acknowledge !== "function") return;
+      if (socket.data.role !== CONNECTION_ROLES.host) {
+        acknowledge(notAuthorizedHostGameCommand);
+        return;
+      }
+      if (!isConfigureRolesRequest(request)) {
+        acknowledge({
+          ok: false,
+          error: {
+            code: "invalid_role_configuration",
+            message: "Choose valid whole-number role counts.",
+          },
+        });
+        return;
+      }
+      acknowledge(roomManager.configureRoles(socket.id, request.counts));
+    });
+
+    socket.on(HOST_START_GAME_EVENT, (acknowledge) => {
+      if (typeof acknowledge !== "function") return;
+      if (socket.data.role !== CONNECTION_ROLES.host) {
+        acknowledge(notAuthorizedHostGameCommand);
+        return;
+      }
+      acknowledge(roomManager.startGame(socket.id));
+    });
+
+    socket.on(HOST_START_VOTING_EVENT, (acknowledge) => {
+      if (typeof acknowledge !== "function") return;
+      if (socket.data.role !== CONNECTION_ROLES.host) {
+        acknowledge(notAuthorizedHostGameCommand);
+        return;
+      }
+      acknowledge(roomManager.startVoting(socket.id));
+    });
+
     socket.on(PLAYER_JOIN_ROOM_EVENT, (request, acknowledge) => {
       if (typeof acknowledge !== "function") {
         return;
@@ -319,6 +381,31 @@ export const createRealtimeServer = (
           bytes,
         ),
       );
+    });
+
+    socket.on(PLAYER_SELECT_TARGET_EVENT, (request, acknowledge) => {
+      if (typeof acknowledge !== "function") return;
+      if (socket.data.role !== CONNECTION_ROLES.player) {
+        acknowledge(notAuthorizedPlayerGameCommand);
+        return;
+      }
+      if (!isSelectTargetRequest(request)) {
+        acknowledge({
+          ok: false,
+          error: { code: "invalid_target", message: "Choose a valid player." },
+        });
+        return;
+      }
+      acknowledge(roomManager.selectGameTarget(socket.id, request.targetPlayerId));
+    });
+
+    socket.on(PLAYER_CONFIRM_SELECTION_EVENT, (acknowledge) => {
+      if (typeof acknowledge !== "function") return;
+      if (socket.data.role !== CONNECTION_ROLES.player) {
+        acknowledge(notAuthorizedPlayerGameCommand);
+        return;
+      }
+      acknowledge(roomManager.confirmGameSelection(socket.id));
     });
 
     socket.on("disconnect", () => {

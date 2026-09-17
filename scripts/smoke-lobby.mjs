@@ -1,14 +1,19 @@
 import { io } from "socket.io-client";
 import {
   CONNECTION_ROLES,
+  HOST_CONFIGURE_ROLES_EVENT,
   HOST_CREATE_ROOM_EVENT,
   HOST_GET_NETWORK_ADDRESSES_EVENT,
   HOST_LOCK_ROOM_EVENT,
   HOST_LOBBY_STATE_EVENT,
+  HOST_START_GAME_EVENT,
+  HOST_START_VOTING_EVENT,
+  PLAYER_CONFIRM_SELECTION_EVENT,
   PLAYER_PHOTO_CONTENT_TYPE,
   PLAYER_PHOTO_UPLOAD_EVENT,
   PLAYER_JOIN_ROOM_EVENT,
   PLAYER_RECONNECT_EVENT,
+  PLAYER_SELECT_TARGET_EVENT,
   PLAYER_STATE_EVENT,
 } from "@morder/shared";
 
@@ -49,7 +54,12 @@ const acknowledge = (socket, eventName, ...args) =>
     `${eventName} acknowledgement`,
   );
 
-const waitForEvent = (socket, eventName, predicate = () => true) =>
+const waitForEvent = (
+  socket,
+  eventName,
+  predicate = () => true,
+  timeoutMs = 5_000,
+) =>
   withTimeout(
     new Promise((resolve) => {
       const listener = (payload) => {
@@ -62,6 +72,7 @@ const waitForEvent = (socket, eventName, predicate = () => true) =>
       socket.on(eventName, listener);
     }),
     eventName,
+    timeoutMs,
   );
 
 const assert = (condition, message) => {
@@ -209,6 +220,7 @@ try {
     "reconnect proof",
   );
   const restoredLobby = await reconnectedLobby;
+  original.socket = replacement;
   assert(restoredSession.session.self.id === originalId, "Reconnect changed identity.");
   assert(
     restoredSession.session.self.photoVersion === 2,
@@ -250,8 +262,190 @@ try {
     "A player replaced a photo after the roster lock.",
   );
 
+  expectSuccess(
+    await acknowledge(hostOne, HOST_CONFIGURE_ROLES_EVENT, {
+      counts: { murderer: 1, doctor: 1, sheriff: 1, civilian: 2 },
+    }),
+    "role configuration",
+  );
+
+  const openingStates = roomOnePlayers.map(({ socket }) =>
+    waitForEvent(
+      socket,
+      PLAYER_STATE_EVENT,
+      (state) => state.game?.phase === "night-actions",
+    ),
+  );
+  const started = expectSuccess(
+    await acknowledge(hostOne, HOST_START_GAME_EVENT),
+    "game start",
+  );
+  assert(
+    started.lobby.game?.phase === "night-actions",
+    "The game did not begin at night.",
+  );
+  assert(
+    !/role|selection|target|investigation/i.test(
+      JSON.stringify(started.lobby.game),
+    ),
+    "The active host game projection exposed private state.",
+  );
+  const privateOpeningStates = await Promise.all(openingStates);
+  const roleEntries = roomOnePlayers.map((entry, index) => ({
+    ...entry,
+    state: privateOpeningStates[index],
+    role: privateOpeningStates[index].game?.role,
+  }));
+  const murderer = roleEntries.find((entry) => entry.role === "murderer");
+  const doctor = roleEntries.find((entry) => entry.role === "doctor");
+  const sheriff = roleEntries.find((entry) => entry.role === "sheriff");
+  const civilians = roleEntries.filter((entry) => entry.role === "civilian");
+  assert(murderer && doctor && sheriff && civilians.length === 2, "Role assignment did not match the configured counts.");
+
+  const victim = civilians[0];
+  const protectedPlayer = civilians[1];
+  for (const [actor, target, label] of [
+    [murderer, victim, "murderer"],
+    [doctor, protectedPlayer, "doctor"],
+    [sheriff, murderer, "sheriff"],
+  ]) {
+    expectSuccess(
+      await acknowledge(actor.socket, PLAYER_SELECT_TARGET_EVENT, {
+        targetPlayerId: target.session.self.id,
+      }),
+      `${label} target selection`,
+    );
+    expectSuccess(
+      await acknowledge(actor.socket, PLAYER_CONFIRM_SELECTION_EVENT),
+      `${label} confirmation`,
+    );
+  }
+
+  const publicNightResult = waitForEvent(
+    hostOne,
+    HOST_LOBBY_STATE_EVENT,
+    (lobby) => lobby.game?.phase === "night-result",
+    35_000,
+  );
+  const sheriffNightResult = waitForEvent(
+    sheriff.socket,
+    PLAYER_STATE_EVENT,
+    (state) => state.game?.phase === "night-result",
+    35_000,
+  );
+  const nightResult = await publicNightResult;
+  assert(
+    !/role|selection|target|investigation/i.test(JSON.stringify(nightResult.game)),
+    "The host night-result projection exposed private information.",
+  );
+  const privateSheriffResult = await sheriffNightResult;
+  assert(
+    privateSheriffResult.game?.investigation?.player.id === murderer.session.self.id &&
+      privateSheriffResult.game.investigation.role === "murderer",
+    "The Sheriff did not privately receive the investigation result.",
+  );
+
+  const morningStates = roleEntries.map(({ socket }) =>
+    waitForEvent(
+      socket,
+      PLAYER_STATE_EVENT,
+      (state) => state.game?.phase === "morning" || state.game?.phase === "eliminated",
+      10_000,
+    ),
+  );
+  const publicMorning = await waitForEvent(
+    hostOne,
+    HOST_LOBBY_STATE_EVENT,
+    (lobby) => lobby.game?.phase === "morning",
+    10_000,
+  );
+  assert(
+    publicMorning.game.outcome.kind === "eliminated" &&
+      publicMorning.game.outcome.player.id === victim.session.self.id,
+    "The unprotected murder did not resolve publicly.",
+  );
+  const privateMorningStates = await Promise.all(morningStates);
+  const livingMorningGames = privateMorningStates
+    .map((state) => state.game)
+    .filter((game) => game?.phase === "morning");
+  assert(
+    new Set(livingMorningGames.map((game) => JSON.stringify(game))).size === 1,
+    "Living players received role-distinguishing morning state.",
+  );
+
+  const discussionState = await waitForEvent(
+    hostOne,
+    HOST_LOBBY_STATE_EVENT,
+    (lobby) => lobby.game?.phase === "discussion",
+    10_000,
+  );
+  assert(discussionState.game.phase === "discussion", "Discussion did not begin.");
+
+  const votingStarted = expectSuccess(
+    await acknowledge(hostOne, HOST_START_VOTING_EVENT),
+    "voting start",
+  );
+  assert(votingStarted.lobby.game?.phase === "voting", "Voting did not begin.");
+  const livingEntries = roleEntries.filter(
+    (entry) => entry.session.self.id !== victim.session.self.id,
+  );
+  for (const entry of livingEntries) {
+    expectSuccess(
+      await acknowledge(entry.socket, PLAYER_SELECT_TARGET_EVENT, {
+        targetPlayerId: murderer.session.self.id,
+      }),
+      "vote selection",
+    );
+    expectSuccess(
+      await acknowledge(entry.socket, PLAYER_CONFIRM_SELECTION_EVENT),
+      "vote confirmation",
+    );
+  }
+
+  const reconnectingVoter = livingEntries.find(
+    (entry) => entry.session.self.id !== murderer.session.self.id,
+  );
+  reconnectingVoter.socket.disconnect();
+  const restoredVoterSocket = await connect(CONNECTION_ROLES.player);
+  const restoredVote = expectSuccess(
+    await acknowledge(restoredVoterSocket, PLAYER_RECONNECT_EVENT, {
+      reconnectToken: reconnectingVoter.session.reconnectToken,
+    }),
+    "mid-vote reconnect",
+  );
+  assert(
+    restoredVote.session.game?.phase === "voting" &&
+      restoredVote.session.game.ownSelection === murderer.session.self.id &&
+      restoredVote.session.game.confirmed === true,
+    "Reconnect did not preserve the confirmed vote.",
+  );
+  reconnectingVoter.socket = restoredVoterSocket;
+
+  const publicVoteResult = await waitForEvent(
+    hostOne,
+    HOST_LOBBY_STATE_EVENT,
+    (lobby) => lobby.game?.phase === "vote-result",
+    35_000,
+  );
+  assert(
+    publicVoteResult.game.outcome.kind === "eliminated" &&
+      publicVoteResult.game.outcome.player.id === murderer.session.self.id,
+    "The unique vote leader was not eliminated.",
+  );
+  const finalState = await waitForEvent(
+    hostOne,
+    HOST_LOBBY_STATE_EVENT,
+    (lobby) => lobby.game?.phase === "result",
+    10_000,
+  );
+  assert(
+    finalState.game.winner === "non-murderers" &&
+      finalState.game.reveal.length === 5,
+    "The game did not finish with the expected winner and final role reveal.",
+  );
+
   console.log(
-    `Smoke passed: pages reachable, ${roomOne.roomCode}/${roomTwo.roomCode} isolated, five-player lobby accepted, photo replacement/reconnect verified, roster locked.`,
+    `Smoke passed: pages reachable, ${roomOne.roomCode}/${roomTwo.roomCode} isolated, M0 lobby/photo/reconnect verified, and the timed four-role loop reached final reveal.`,
   );
 } finally {
   for (const client of clients) {

@@ -2,11 +2,11 @@
 
 ## Status
 
-M0 implements the repository, transport, room, projection, reconnect,
-local-network, QR, temporary-photo, roster-lock, and testing boundaries
-described here. Game, role, and voting sections remain forward constraints.
-The architecture optimizes for the first in-room playtest, not theoretical
-scale.
+M0 and M1 are implemented. The repository now includes the transport, room,
+projection, reconnect, local-network, QR, temporary-photo, roster-lock, focused
+four-role game engine, fixed phase scheduling, and explicit public/private game
+projections described here. The architecture optimizes for the first in-room
+playtest, not theoretical scale.
 
 ## Repository and runtime shape
 
@@ -44,12 +44,12 @@ Internal room/game state
   └─ playerProjection(room, playerId) → only that player's socket
 ```
 
-M0 internal state contains host/socket indexes, membership, reconnect
-capabilities, room status, and temporary photo bytes. Future internal state may
-add roles, night actions, vote choices, investigation results, timers, and win
-state. None of those fields should automatically become protocol types.
+Internal state contains host/socket indexes, membership, reconnect
+capabilities, room status, temporary photo bytes, roles, night actions, vote
+choices, investigation results, timers, and win state. None of those fields
+automatically become protocol types.
 
-M0a defines separate `PublicLobbyProjection`, `PublicLobbyPlayer`,
+The protocol defines separate `PublicLobbyProjection`, `PublicLobbyPlayer`,
 `PrivatePlayerIdentity`, and `PlayerSession` wire types rather than `Omit`-ing
 secrets from one large shared type. Explicit construction makes a newly added
 internal field private by default and forces a deliberate choice before it
@@ -57,18 +57,19 @@ crosses the network.
 
 ### Public host projection
 
-During play, the host may receive room code, public player IDs/names/photos,
-connection/public life state, phase, public timer, submitted/not-submitted
-progress only when safe, public announcements, vote outcome, and result data.
-It must not receive live roles, target selections, individual votes if voting
-is secret, or Sheriff results. The authoritative final state may deliberately
-include the role reveal.
+During play, the host receives room code, public player IDs/names/photos,
+connection/life state, phase, public timer, announcements, vote outcome, and
+result data. It receives no completion progress, live roles, target selections,
+individual votes, team consensus, or Sheriff results. The authoritative final
+state deliberately includes the role reveal.
 
 ### Private player projection
 
-A player may receive their own stable ID, own role, current permitted action,
-valid public targets, own submission acknowledgement, own Sheriff result, and
-the same public facts they need. They must not receive other roles, private
+A living player receives their own role, permitted action, targets, relevant
+living teammates and team selections during night only, their own voting
+selection, and their own Sheriff result when applicable. Daytime projections
+are role-neutral and secret-free. Eliminated players receive only a generic
+phase marker until the result. No player receives another team's roles,
 actions, votes, or investigation results.
 
 Route every private update to the socket associated on the server with that
@@ -88,10 +89,10 @@ Keep three focused layers:
    identity from the socket, invokes room/game operations, and emits only the
    correct projection.
 
-M0a implements the room/session manager and Socket.IO adapter. There is no game
-engine or placeholder game state. Add the focused Murder game module in M1. Do
-not build a generic role plugin system, event-sourcing layer, or state-machine
-framework.
+The room/session manager, Socket.IO adapter, and one focused game module for
+Murderer, Doctor, Sheriff, and Civilian rules are implemented. Do not turn them
+into a generic role plugin system, event-sourcing layer, or generalized
+state-machine framework.
 
 ## Shared protocol
 
@@ -99,16 +100,15 @@ framework.
 projection types, small runtime validators, room-code/name normalization, and
 join-URL helpers. It does not export the internal authoritative state type.
 
-The current event families are deliberately small:
+The event families are deliberately small:
 
 - host room creation and LAN-address requests;
 - player join, reconnect, and own-photo upload requests;
-- host roster lock requests;
-- public host lobby snapshots and minimal private player-state updates; and
+- host roster lock, role configuration, game start, and voting-start requests;
+- player target selection and confirmation requests;
+- public host room/game snapshots and recipient-specific private player-state
+  updates; and
 - player room-closed notices.
-
-Future game, action, and vote events should extend these recipient
-boundaries rather than broadening the current lobby payload.
 
 Use integration/type tests to prove event routing and serialized secret
 absence. A test should fail if a Civilian or public host payload contains role
@@ -192,15 +192,18 @@ different trust projections, screen constraints, and interaction goals. Within
 each, use small feature components rather than importing Buzz's coupled
 `App.tsx` files or visual system.
 
-M0 currently provides:
+The current clients provide:
 
 - host: connection status, create-room action, LAN-address selection, locally
   generated QR, copyable join URL, a live public photo/name lobby, and a
-  one-way roster-lock control; and
+  one-way roster lock, role-count controls, public phase timers/outcomes,
+  host-started voting, public life state, winner, and final role reveal; and
 - controller: connection status, URL-prefilled/manual join form, join errors,
   private session confirmation, stored reconnect session, refresh restoration,
   camera/gallery photo preparation, own-photo upload/replacement, minimal room
-  status, locked waiting UI, and room-closed handling.
+  status, locked waiting UI, role-specific night controls, private Sheriff
+  result, role-neutral daytime screens, voting, generic eliminated state,
+  result, and room-closed handling.
 
 There is no shared frontend or design-system package; introduce a shared helper
 only after real duplication.
@@ -228,20 +231,20 @@ Use the proven Buzz test shape, adapted to hidden information:
   real phones, television readability, network friction, and interaction
   leakage. Automated tests cannot replace this evidence.
 
-M0 currently has 35 automated tests across controller photo preparation, host
-QR rendering, shared URL behavior, room codes, network-address filtering,
-room/session behavior, Socket.IO routing, photo validation/lifetime, lock
-semantics, malformed and unauthorized events, room isolation, more than four
-players, projection boundaries, and reconnect replacement. The repository
-smoke test starts from the real HTTP/Socket.IO surfaces and checks two rooms,
-five joins, binary photo replacement, photo-preserving reconnect, and roster
-lock. The host/player lifecycle was exercised in real browser UIs, and a
-same-Wi-Fi physical phone verified QR join plus correctly oriented camera-photo
-upload and host rendering.
+The repository currently has 54 automated tests across controller photo
+preparation, host QR rendering, shared URL behavior, room/session behavior,
+Socket.IO routing, role validation/assignment, legal targets, consensus,
+protection, investigation, voting, ties, abstention, elimination, win checks,
+timers, reconnect, and serialized projection boundaries. The game module uses
+injected clocks, randomness, and scheduling so fixed-duration behavior is
+tested without real delays.
 
-Inject clocks, randomness, schedulers, and role allocation into the M1 game
-module so night, discussion, vote, and tie behavior can be tested without real
-delays.
+The live smoke starts from the real HTTP/Socket.IO surfaces and runs M0 plus a
+production-timed five-player four-role game through final reveal. Independent
+browser checks completed a four-player game across isolated origins, including
+the advertised LAN address. The earlier same-Wi-Fi physical-phone check covers
+QR join and camera-photo upload; the next social playtest must cover the full
+game on physical phones.
 
 ## Deployment assumptions
 
