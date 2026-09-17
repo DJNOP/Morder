@@ -1,0 +1,35 @@
+# Ideas
+
+This file holds possibilities and hypotheses. Nothing here is committed work or
+an accepted decision. Ideas become implementation issues only when evidence and
+a deliberate choice make them current.
+
+## Rules to test
+
+- Allow the Doctor to protect themselves.
+- Allow the Doctor to protect the same player on consecutive nights.
+- Eliminate nobody when the public vote is tied.
+- Decide whether a prevented murder is announced as a save, as no death, or
+  with deliberately ambiguous wording.
+
+## Interaction-leakage experiments
+
+- Give every living player a similarly timed night interaction so visible phone
+  use does not identify special roles.
+- Hold the night phase until a fixed deadline or neutral transition rather than
+  advancing the instant the last required special action arrives.
+- Use consistent layout, tap count, transition timing, screen brightness, and
+  optional haptics across roles.
+- Delay or stage private investigation feedback to reduce immediate visible
+  reactions without making the game frustrating.
+
+These ideas require real-room observation. They are not yet selected designs.
+
+## Later product possibilities
+
+- Internet-hosted private rooms.
+- Configurable role mixes and house rules.
+- Additional roles only after the initial set is validated.
+- Optional accessibility modes and alternative photo-free identity cards.
+- Persistent profiles, matchmaking, progression, cosmetics, or monetisation.
+- Native phone or television applications.
