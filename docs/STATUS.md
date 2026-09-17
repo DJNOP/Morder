@@ -46,12 +46,11 @@ joining on a real phone without adding photos or gameplay.
   active Buzz development stack on 5173/5174/3001.
 - QR rendering, player photos, lobby start/lock, and all gameplay remain
   unimplemented.
-- [Issue #1](https://github.com/DJNOP/Morder/issues/1) now tracks the exact M0b
-  task below. A
+- [Issue #1](https://github.com/DJNOP/Morder/issues/1) tracks the exact M0b task
+  below. The
   [Morder Development GitHub Project](https://github.com/users/DJNOP/projects/3)
-  and its `Now` / `Next` / `Later` / `Done` board workflow exist, but roadmap
-  item population and repository linking remain blocked until the GitHub CLI
-  token has `read:project` and `project` OAuth scopes.
+  provides a concise `Done` / `Now` / `Next` / `Later` visual roadmap linked to
+  this repository. This document remains the detailed source of truth.
 
 ## Verification status
 
@@ -158,7 +157,7 @@ worked. Each issue should contain purpose, context, scope, constraints,
 acceptance checks, and a stop condition. Keep hypotheses in `docs/IDEAS.md` and
 promote one only after a decision or playtest makes it actionable. Use the
 [Morder Development project](https://github.com/users/DJNOP/projects/3) as the
-lightweight visual overview once its access-blocked setup is complete;
-`docs/STATUS.md` remains the detailed source of truth.
+lightweight visual overview; `docs/STATUS.md` remains the detailed source of
+truth.
 
 [m0b-issue]: https://github.com/DJNOP/Morder/issues/1
