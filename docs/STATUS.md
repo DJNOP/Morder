@@ -46,6 +46,12 @@ joining on a real phone without adding photos or gameplay.
   active Buzz development stack on 5173/5174/3001.
 - QR rendering, player photos, lobby start/lock, and all gameplay remain
   unimplemented.
+- [Issue #1](https://github.com/DJNOP/Morder/issues/1) now tracks the exact M0b
+  task below. A
+  [Morder Development GitHub Project](https://github.com/users/DJNOP/projects/3)
+  and its `Now` / `Next` / `Later` / `Done` board workflow exist, but roadmap
+  item population and repository linking remain blocked until the GitHub CLI
+  token has `read:project` and `project` OAuth scopes.
 
 ## Verification status
 
@@ -62,7 +68,7 @@ joining on a real phone without adding photos or gameplay.
 
 ## Next task
 
-### M0b — Add QR joining and run the physical LAN acceptance check
+### [M0b — Add QR joining and run the physical LAN acceptance check][m0b-issue]
 
 **Purpose:** Remove manual link entry and prove that a real phone can reach the
 existing Morder room over the local network.
@@ -150,6 +156,9 @@ These are deliberately not current scope and are not GitHub work items.
 Use GitHub issues only for the one or few concrete tasks currently ready to be
 worked. Each issue should contain purpose, context, scope, constraints,
 acceptance checks, and a stop condition. Keep hypotheses in `docs/IDEAS.md` and
-promote one only after a decision or playtest makes it actionable. A Projects
-board is unnecessary while one status document and a small issue list remain
-clear.
+promote one only after a decision or playtest makes it actionable. Use the
+[Morder Development project](https://github.com/users/DJNOP/projects/3) as the
+lightweight visual overview once its access-blocked setup is complete;
+`docs/STATUS.md` remains the detailed source of truth.
+
+[m0b-issue]: https://github.com/DJNOP/Morder/issues/1

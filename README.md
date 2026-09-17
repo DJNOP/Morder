@@ -109,6 +109,8 @@ player can reconnect without creating a duplicate.
 
 - [Product](docs/PRODUCT.md) — durable purpose, experience principles, and scope.
 - [Status dashboard](docs/STATUS.md) — verified state, milestones, and one next task.
+- [GitHub Project: Morder Development](https://github.com/users/DJNOP/projects/3)
+  — visual roadmap; item population is pending GitHub Projects OAuth access.
 - [Decisions](docs/DECISIONS.md) — deliberately accepted choices.
 - [Architecture](docs/ARCHITECTURE.md) — implemented boundaries and future constraints.
 - [Buzz audit](docs/BUZZ_AUDIT.md) — evidence and explicit reuse classification.
