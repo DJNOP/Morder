@@ -3,6 +3,10 @@ import type {
   PlayerSession,
   PublicLobbyProjection,
 } from "@morder/shared";
+import {
+  PLAYER_PHOTO_CONTENT_TYPE,
+  PLAYER_PHOTO_MAX_BYTES,
+} from "@morder/shared";
 import { RoomManager, type RoomManagerEvent } from "../src/room-manager.js";
 
 const createManager = (roomCodes = ["ABCD", "EFGH"]) => {
@@ -49,12 +53,15 @@ const latestLobby = (events: RoomManagerEvent[]): PublicLobbyProjection => {
   return event.lobby;
 };
 
+const jpeg = (...payload: number[]) =>
+  Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...payload, 0xff, 0xd9]);
+
 describe("RoomManager", () => {
   it("creates one room owned by a host", () => {
     const manager = createManager();
     expect(manager.createRoom("host-1")).toEqual({
       ok: true,
-      lobby: { roomCode: "ABCD", players: [] },
+      lobby: { roomCode: "ABCD", roomStatus: "open", players: [] },
     });
     expect(manager.createRoom("host-1")).toMatchObject({
       ok: false,
@@ -115,6 +122,149 @@ describe("RoomManager", () => {
     const serializedLobby = JSON.stringify(manager.getLobbyForHost("host-1"));
     expect(serializedLobby).not.toContain(session.reconnectToken);
     expect(serializedLobby).not.toContain("reconnectToken");
+    expect(serializedLobby).not.toContain("bytes");
+  });
+
+  it("stores valid photos by player, exposes only a version, and preserves them on reconnect", () => {
+    const manager = createManager();
+    createRoom(manager);
+    const session = joinRoom(manager, "player-old", "Ada");
+
+    expect(
+      manager.updatePlayerPhoto(
+        "player-old",
+        PLAYER_PHOTO_CONTENT_TYPE,
+        jpeg(1, 2, 3),
+      ),
+    ).toMatchObject({
+      ok: true,
+      playerState: { self: { photoVersion: 1 } },
+    });
+    const firstLobby = manager.getLobbyForHost("host-1");
+    expect(firstLobby?.players[0]?.photoVersion).toBe(1);
+    expect(JSON.stringify(firstLobby)).not.toContain("bytes");
+    expect(manager.getPlayerPhoto("ABCD", session.self.id)).toMatchObject({
+      contentType: PLAYER_PHOTO_CONTENT_TYPE,
+      version: 1,
+    });
+
+    manager.handleDisconnect("player-old");
+    const restored = manager.reconnectPlayer(
+      "player-new",
+      session.reconnectToken,
+    );
+    expect(restored.result).toMatchObject({
+      ok: true,
+      session: { self: { id: session.self.id, photoVersion: 1 } },
+    });
+
+    expect(
+      manager.updatePlayerPhoto(
+        "player-new",
+        PLAYER_PHOTO_CONTENT_TYPE,
+        jpeg(9, 8, 7),
+      ),
+    ).toMatchObject({
+      ok: true,
+      playerState: { self: { photoVersion: 2 } },
+    });
+    expect(manager.getPlayerPhoto("ABCD", session.self.id)).toMatchObject({
+      bytes: jpeg(9, 8, 7),
+      version: 2,
+    });
+  });
+
+  it("rejects unsupported, malformed, and oversized photo payloads", () => {
+    const manager = createManager();
+    createRoom(manager);
+    joinRoom(manager, "player-1", "Ada");
+
+    expect(
+      manager.updatePlayerPhoto("player-1", "image/png", jpeg()),
+    ).toMatchObject({ ok: false, error: { code: "invalid_photo_type" } });
+    expect(
+      manager.updatePlayerPhoto(
+        "player-1",
+        PLAYER_PHOTO_CONTENT_TYPE,
+        Uint8Array.from([1, 2, 3]),
+      ),
+    ).toMatchObject({ ok: false, error: { code: "invalid_photo_data" } });
+    expect(
+      manager.updatePlayerPhoto(
+        "player-1",
+        PLAYER_PHOTO_CONTENT_TYPE,
+        new Uint8Array(PLAYER_PHOTO_MAX_BYTES + 1),
+      ),
+    ).toMatchObject({ ok: false, error: { code: "photo_too_large" } });
+  });
+
+  it("scopes photo retrieval to its room and removes bytes with the room", () => {
+    const manager = createManager();
+    createRoom(manager, "host-1");
+    createRoom(manager, "host-2");
+    const session = joinRoom(manager, "player-1", "Ada", "ABCD");
+    manager.updatePlayerPhoto(
+      "player-1",
+      PLAYER_PHOTO_CONTENT_TYPE,
+      jpeg(1),
+    );
+
+    expect(manager.getPlayerPhoto("EFGH", session.self.id)).toBeNull();
+    expect(manager.getPlayerPhoto("ABCD", "missing-player")).toBeNull();
+    expect(manager.getPlayerPhoto("ABCD", session.self.id)).not.toBeNull();
+
+    manager.handleDisconnect("host-1");
+    expect(manager.getPlayerPhoto("ABCD", session.self.id)).toBeNull();
+  });
+
+  it("locks one room authoritatively while preserving reconnect and room isolation", () => {
+    const manager = createManager();
+    createRoom(manager, "host-1");
+    createRoom(manager, "host-2");
+
+    expect(manager.lockRoom("host-1")).toMatchObject({
+      ok: false,
+      error: { code: "lobby_empty" },
+    });
+    const session = joinRoom(manager, "player-old", "Ada", "ABCD");
+    manager.updatePlayerPhoto(
+      "player-old",
+      PLAYER_PHOTO_CONTENT_TYPE,
+      jpeg(1),
+    );
+    expect(manager.lockRoom("host-1")).toMatchObject({
+      ok: true,
+      lobby: { roomStatus: "locked" },
+    });
+    expect(
+      manager.joinRoom("new-player", { roomCode: "ABCD", displayName: "Grace" }),
+    ).toMatchObject({ ok: false, error: { code: "room_locked" } });
+    expect(
+      manager.updatePlayerPhoto(
+        "player-old",
+        PLAYER_PHOTO_CONTENT_TYPE,
+        jpeg(2),
+      ),
+    ).toMatchObject({ ok: false, error: { code: "room_locked" } });
+
+    manager.handleDisconnect("player-old");
+    expect(
+      manager.reconnectPlayer("player-new", session.reconnectToken).result,
+    ).toMatchObject({
+      ok: true,
+      session: {
+        roomStatus: "locked",
+        self: { id: session.self.id, photoVersion: 1 },
+      },
+    });
+    expect(manager.getLobbyForHost("host-1")?.players).toHaveLength(1);
+
+    expect(
+      manager.joinRoom("room-two-player", {
+        roomCode: "EFGH",
+        displayName: "Lin",
+      }),
+    ).toMatchObject({ ok: true, session: { roomStatus: "open" } });
   });
 
   it("marks a disconnect and restores the same identity without expiring it", () => {

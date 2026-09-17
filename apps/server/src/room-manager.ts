@@ -1,5 +1,7 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import {
+  PLAYER_PHOTO_CONTENT_TYPE,
+  PLAYER_PHOTO_MAX_BYTES,
   isDisplayName,
   isRoomCode,
   normalizeDisplayName,
@@ -7,11 +9,15 @@ import {
   type CreateRoomResult,
   type JoinRoomRequest,
   type JoinRoomResult,
+  type LockRoomResult,
+  type PlayerPhotoUploadResult,
   type PlayerSession,
   type PrivatePlayerIdentity,
+  type PrivatePlayerState,
   type PublicLobbyPlayer,
   type PublicLobbyProjection,
   type ReconnectPlayerResult,
+  type RoomStatus,
 } from "@morder/shared";
 import { generateRoomCode } from "./room-code.js";
 
@@ -24,11 +30,19 @@ interface PlayerRecord {
   connected: boolean;
   socketId: string | null;
   reconnectToken: string;
+  photo: PlayerPhoto | null;
+}
+
+interface PlayerPhoto {
+  contentType: typeof PLAYER_PHOTO_CONTENT_TYPE;
+  bytes: Uint8Array;
+  version: number;
 }
 
 interface RoomRecord {
   code: string;
   hostSocketId: string;
+  status: RoomStatus;
   players: Map<string, PlayerRecord>;
 }
 
@@ -44,6 +58,11 @@ export type RoomManagerEvent =
       lobby: PublicLobbyProjection;
     }
   | {
+      type: "player-state-updated";
+      playerSocketId: string;
+      playerState: PrivatePlayerState;
+    }
+  | {
       type: "room-closed";
       roomCode: string;
       playerSocketIds: string[];
@@ -52,6 +71,12 @@ export type RoomManagerEvent =
 export interface ReconnectPlayerOutcome {
   result: ReconnectPlayerResult;
   replacedSocketId: string | null;
+}
+
+export interface StoredPlayerPhoto {
+  contentType: typeof PLAYER_PHOTO_CONTENT_TYPE;
+  bytes: Uint8Array;
+  version: number;
 }
 
 export interface RoomManagerOptions {
@@ -117,6 +142,7 @@ export class RoomManager {
     const room: RoomRecord = {
       code,
       hostSocketId,
+      status: "open",
       players: new Map(),
     };
     this.rooms.set(code, room);
@@ -156,6 +182,16 @@ export class RoomManager {
         error: {
           code: "room_not_found",
           message: "That room does not exist. Check the code and try again.",
+        },
+      };
+    }
+
+    if (room.status === "locked") {
+      return {
+        ok: false,
+        error: {
+          code: "room_locked",
+          message: "This lobby is locked and is no longer accepting new players.",
         },
       };
     }
@@ -205,6 +241,7 @@ export class RoomManager {
       connected: true,
       socketId: playerSocketId,
       reconnectToken,
+      photo: null,
     };
     room.players.set(player.id, player);
 
@@ -263,6 +300,137 @@ export class RoomManager {
     return {
       result: { ok: true, session: this.toPlayerSession(room, player) },
       replacedSocketId,
+    };
+  }
+
+  updatePlayerPhoto(
+    playerSocketId: string,
+    contentType: string,
+    bytes: Uint8Array,
+  ): PlayerPhotoUploadResult {
+    const locator = this.playerBySocket.get(playerSocketId);
+    const room = locator ? this.rooms.get(locator.roomCode) : undefined;
+    const player = room && locator ? room.players.get(locator.playerId) : undefined;
+
+    if (!locator || !room || !player || player.socketId !== playerSocketId) {
+      return {
+        ok: false,
+        error: {
+          code: "not_joined",
+          message: "Join a room before adding a photo.",
+        },
+      };
+    }
+
+    if (room.status === "locked") {
+      return {
+        ok: false,
+        error: {
+          code: "room_locked",
+          message: "The roster is locked, so photos can no longer be changed.",
+        },
+      };
+    }
+
+    if (contentType !== PLAYER_PHOTO_CONTENT_TYPE) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_photo_type",
+          message: "The processed photo must be a JPEG image.",
+        },
+      };
+    }
+
+    if (bytes.byteLength > PLAYER_PHOTO_MAX_BYTES) {
+      return {
+        ok: false,
+        error: {
+          code: "photo_too_large",
+          message: "The processed photo is too large. Choose another image.",
+        },
+      };
+    }
+
+    if (!this.isJpeg(bytes)) {
+      return {
+        ok: false,
+        error: {
+          code: "invalid_photo_data",
+          message: "The processed photo is not a valid JPEG image.",
+        },
+      };
+    }
+
+    player.photo = {
+      contentType: PLAYER_PHOTO_CONTENT_TYPE,
+      bytes: Uint8Array.from(bytes),
+      version: (player.photo?.version ?? 0) + 1,
+    };
+    this.emitLobbyUpdated(room);
+    const playerState = this.toPrivatePlayerState(room, player);
+    this.emitPlayerStateUpdated(player, playerState);
+    return { ok: true, playerState };
+  }
+
+  lockRoom(hostSocketId: string): LockRoomResult {
+    const roomCode = this.roomCodeByHostSocket.get(hostSocketId);
+    const room = roomCode ? this.rooms.get(roomCode) : undefined;
+    if (!room) {
+      return {
+        ok: false,
+        error: {
+          code: "room_not_found",
+          message: "Create a room before locking the roster.",
+        },
+      };
+    }
+
+    if (room.status === "locked") {
+      return {
+        ok: false,
+        error: {
+          code: "room_already_locked",
+          message: "This roster is already locked.",
+        },
+      };
+    }
+
+    if (room.players.size === 0) {
+      return {
+        ok: false,
+        error: {
+          code: "lobby_empty",
+          message: "At least one player must join before locking the roster.",
+        },
+      };
+    }
+
+    room.status = "locked";
+    const lobby = this.toPublicLobby(room);
+    this.emit({ type: "lobby-updated", hostSocketId, lobby });
+    for (const player of room.players.values()) {
+      this.emitPlayerStateUpdated(
+        player,
+        this.toPrivatePlayerState(room, player),
+      );
+    }
+    return { ok: true, lobby };
+  }
+
+  getPlayerPhoto(roomCode: string, playerId: string): StoredPlayerPhoto | null {
+    const normalizedRoomCode = normalizeRoomCode(roomCode);
+    if (!isRoomCode(normalizedRoomCode)) {
+      return null;
+    }
+    const photo = this.rooms.get(normalizedRoomCode)?.players.get(playerId)?.photo;
+    if (!photo) {
+      return null;
+    }
+    return {
+      contentType: photo.contentType,
+      bytes: photo.bytes.slice(),
+      version: photo.version,
     };
   }
 
@@ -356,6 +524,7 @@ export class RoomManager {
       id: player.id,
       displayName: player.displayName,
       connectionState: player.connected ? "connected" : "disconnected",
+      photoVersion: player.photo?.version ?? null,
     };
   }
 
@@ -364,12 +533,14 @@ export class RoomManager {
       id: player.id,
       displayName: player.displayName,
       connectionState: player.connected ? "connected" : "disconnected",
+      photoVersion: player.photo?.version ?? null,
     };
   }
 
   private toPublicLobby(room: RoomRecord): PublicLobbyProjection {
     return {
       roomCode: room.code,
+      roomStatus: room.status,
       players: [...room.players.values()].map((player) =>
         this.toPublicLobbyPlayer(player),
       ),
@@ -381,10 +552,45 @@ export class RoomManager {
     player: PlayerRecord,
   ): PlayerSession {
     return {
-      roomCode: room.code,
-      self: this.toPrivatePlayerIdentity(player),
+      ...this.toPrivatePlayerState(room, player),
       reconnectToken: player.reconnectToken,
     };
+  }
+
+  private toPrivatePlayerState(
+    room: RoomRecord,
+    player: PlayerRecord,
+  ): PrivatePlayerState {
+    return {
+      roomCode: room.code,
+      roomStatus: room.status,
+      self: this.toPrivatePlayerIdentity(player),
+    };
+  }
+
+  private isJpeg(bytes: Uint8Array) {
+    return (
+      bytes.byteLength >= 5 &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff &&
+      bytes.at(-2) === 0xff &&
+      bytes.at(-1) === 0xd9
+    );
+  }
+
+  private emitPlayerStateUpdated(
+    player: PlayerRecord,
+    playerState: PrivatePlayerState,
+  ) {
+    if (!player.socketId) {
+      return;
+    }
+    this.emit({
+      type: "player-state-updated",
+      playerSocketId: player.socketId,
+      playerState,
+    });
   }
 
   private emitLobbyUpdated(room: RoomRecord) {

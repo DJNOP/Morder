@@ -18,6 +18,20 @@ export const buildPlayerJoinUrl = (
   return url.toString();
 };
 
+export const buildPlayerPhotoUrl = (
+  serverUrl: string,
+  roomCode: string,
+  playerId: string,
+  photoVersion: number,
+) => {
+  const url = new URL(
+    `/rooms/${encodeURIComponent(roomCode)}/players/${encodeURIComponent(playerId)}/photo`,
+    serverUrl,
+  );
+  url.searchParams.set("v", String(photoVersion));
+  return url.toString();
+};
+
 export const parseRoomQuery = (search: string): RoomQueryResult => {
   const values = new URLSearchParams(search).getAll(ROOM_QUERY_PARAMETER);
   if (values.length === 0) {

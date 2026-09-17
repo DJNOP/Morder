@@ -3,9 +3,13 @@ import {
   CONNECTION_ROLES,
   HOST_CREATE_ROOM_EVENT,
   HOST_GET_NETWORK_ADDRESSES_EVENT,
+  HOST_LOCK_ROOM_EVENT,
   HOST_LOBBY_STATE_EVENT,
+  PLAYER_PHOTO_CONTENT_TYPE,
+  PLAYER_PHOTO_UPLOAD_EVENT,
   PLAYER_JOIN_ROOM_EVENT,
   PLAYER_RECONNECT_EVENT,
+  PLAYER_STATE_EVENT,
 } from "@morder/shared";
 
 const serverUrl = process.env.SMOKE_SERVER_URL ?? "http://127.0.0.1:3101";
@@ -148,6 +152,41 @@ try {
 
   const original = roomOnePlayers[0];
   assert(original, "The first room player was not retained for reconnect.");
+  const firstPhotoLobby = waitForEvent(
+    hostOne,
+    HOST_LOBBY_STATE_EVENT,
+    (lobby) => lobby.players[0]?.photoVersion === 1,
+  );
+  expectSuccess(
+    await acknowledge(original.socket, PLAYER_PHOTO_UPLOAD_EVENT, {
+      contentType: PLAYER_PHOTO_CONTENT_TYPE,
+      data: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 0xff, 0xd9]),
+    }),
+    "first photo upload",
+  );
+  const photoState = await firstPhotoLobby;
+  assert(
+    !JSON.stringify(photoState).includes("bytes"),
+    "Lobby projection exposed raw photo bytes.",
+  );
+  const photoUrl = `${serverUrl}/rooms/${roomOne.roomCode}/players/${original.session.self.id}/photo?v=1`;
+  const photoResponse = await withTimeout(fetch(photoUrl), "photo fetch");
+  assert(photoResponse.ok, `Photo endpoint returned HTTP ${photoResponse.status}.`);
+
+  const replacementPhotoLobby = waitForEvent(
+    hostOne,
+    HOST_LOBBY_STATE_EVENT,
+    (lobby) => lobby.players[0]?.photoVersion === 2,
+  );
+  expectSuccess(
+    await acknowledge(original.socket, PLAYER_PHOTO_UPLOAD_EVENT, {
+      contentType: PLAYER_PHOTO_CONTENT_TYPE,
+      data: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 9, 8, 7, 0xff, 0xd9]),
+    }),
+    "replacement photo upload",
+  );
+  await replacementPhotoLobby;
+
   const disconnectedLobby = waitForEvent(
     hostOne,
     HOST_LOBBY_STATE_EVENT,
@@ -171,10 +210,48 @@ try {
   );
   const restoredLobby = await reconnectedLobby;
   assert(restoredSession.session.self.id === originalId, "Reconnect changed identity.");
+  assert(
+    restoredSession.session.self.photoVersion === 2,
+    "Reconnect lost the stored photo version.",
+  );
   assert(restoredLobby.players.length === 5, "Reconnect created a duplicate player.");
 
+  const lockedPlayerState = waitForEvent(
+    replacement,
+    PLAYER_STATE_EVENT,
+    (state) => state.roomStatus === "locked",
+  );
+  const locked = expectSuccess(
+    await acknowledge(hostOne, HOST_LOCK_ROOM_EVENT),
+    "roster lock",
+  );
+  assert(locked.lobby.roomStatus === "locked", "Host projection was not locked.");
+  await lockedPlayerState;
+
+  const latePlayer = await connect(CONNECTION_ROLES.player);
+  const lateJoin = await acknowledge(latePlayer, PLAYER_JOIN_ROOM_EVENT, {
+    roomCode: roomOne.roomCode,
+    displayName: "Late player",
+  });
+  assert(
+    lateJoin.ok === false && lateJoin.error.code === "room_locked",
+    "A new player joined after the roster lock.",
+  );
+  const lockedPhoto = await acknowledge(
+    replacement,
+    PLAYER_PHOTO_UPLOAD_EVENT,
+    {
+      contentType: PLAYER_PHOTO_CONTENT_TYPE,
+      data: Buffer.from([0xff, 0xd8, 0xff, 0xe0, 4, 0xff, 0xd9]),
+    },
+  );
+  assert(
+    lockedPhoto.ok === false && lockedPhoto.error.code === "room_locked",
+    "A player replaced a photo after the roster lock.",
+  );
+
   console.log(
-    `Smoke passed: pages reachable, ${roomOne.roomCode}/${roomTwo.roomCode} isolated, five-player lobby accepted, invalid room rejected.`,
+    `Smoke passed: pages reachable, ${roomOne.roomCode}/${roomTwo.roomCode} isolated, five-player lobby accepted, photo replacement/reconnect verified, roster locked.`,
   );
 } finally {
   for (const client of clients) {

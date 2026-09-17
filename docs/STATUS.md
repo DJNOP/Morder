@@ -1,15 +1,14 @@
 # Project Dashboard
 
 - **Updated:** 2026-09-17
-- **Phase:** M0 — Multiplayer skeleton
-- **Implementation state:** M0b verified; Windows start/stop workflow implemented
+- **Phase:** M0 complete; M1 ready
+- **Implementation state:** Multiplayer onboarding and roster lock verified
 
 ## Current objective
 
-Complete the remaining M0 onboarding without adding gameplay. Room creation,
-QR joining, LAN reachability, names, realtime lobby updates, and reconnect now
-work; the next slice should add temporary photos and an explicit host
-start/lock action.
+Begin M1 as one focused implementation task: the smallest complete Murder game
+with one Murderer and otherwise Civilians. Preserve M0's server authority and
+recipient-specific projections; do not add Doctor or Sheriff yet.
 
 ## Milestones
 
@@ -18,7 +17,7 @@ start/lock action.
 | Foundation | Audit Buzz, define project records and architecture | Complete |
 | M0a — Room and join foundation | Runnable host/player/server, rooms, names, lobby sync, reconnect | Complete |
 | M0b — QR joining and LAN acceptance | Local QR, manual fallback, and real-phone same-Wi-Fi join | Complete |
-| M0 — Multiplayer skeleton | Name, temporary photo, public lobby, start/lock | In progress |
+| M0 — Multiplayer skeleton | Name, temporary photo, public lobby, reconnect, start/lock | Complete |
 | M1 — Minimal playable Murder | Murderer + Civilians through night, discussion, vote, elimination, and result | Not started |
 | First real social playtest | Test social behavior, leakage, usability, and desire for another round | Not started |
 | M2 — Doctor + Sheriff | Add the initial special-role actions and resolution rules | Not started; gated by M1 playtest |
@@ -52,9 +51,30 @@ start/lock action.
 - A real phone successfully scanned the QR, reached the locally running player
   app over the same Wi-Fi, joined the room, and appeared in the host lobby.
   No address, room code, player name, or captured playtest data is retained.
+- A joined phone can take or choose an image, preview a normalized JPEG, upload
+  it over its own authenticated Socket.IO session, and replace it while the
+  lobby is open. Normalization preserves aspect ratio, limits the long edge to
+  512 px, and encodes JPEG at quality 0.82. The server independently requires
+  JPEG data with a valid signature and a maximum payload of 400 KiB.
+- Photo bytes live only in the authoritative in-memory room/player record. The
+  public lobby contains only `photoVersion`; the host loads bytes from a scoped,
+  versioned HTTP endpoint. Room closure or server restart deletes the bytes.
+- The host can make the one-way server-authoritative `open` → `locked`
+  transition. Photos remain optional. Locking rejects new joins and photo
+  changes, keeps the roster fixed, and still permits valid existing-player
+  reconnects without duplication. Phones receive only their own minimal state
+  and the room status.
+- A physical phone camera photo was uploaded from the uncommitted local build,
+  appeared correctly oriented on the host, and remained visible when the host
+  locked the roster. Independent browser checks verified pre-lock refresh,
+  connected-player lock notification, post-lock refresh/reconnect, rejection
+  of a separate new-browser join, and an unchanged one-player roster. The live
+  smoke scenario verified binary photo replacement and photo-preserving
+  reconnect; those two behaviors were not separately observed on the physical
+  phone.
 - Morder uses ports 5183 (host), 5184 (player), and 3101 (server), avoiding the
   active Buzz development stack on 5173/5174/3001.
-- Player photos, lobby start/lock, and all gameplay remain unimplemented.
+- All gameplay remains unimplemented.
 - The [Morder Development GitHub Project](https://github.com/users/DJNOP/projects/3)
   provides a concise `Done` / `Now` / `Next` / `Later` visual roadmap linked to
   this repository. This document remains the detailed source of truth.
@@ -65,54 +85,50 @@ start/lock action.
 | --- | --- |
 | Dependency install | `npm.cmd install` completed; 91 packages audited, 0 vulnerabilities reported. |
 | Type safety | `npm.cmd run typecheck` passed for all four workspaces. |
-| Automated tests | `npm.cmd test` passed: 1 host QR test, 20 server/domain/integration tests, and 5 shared URL tests. |
+| Automated tests | `npm.cmd test` passed: 3 controller photo tests, 1 host QR test, 25 server/domain/integration tests, and 6 shared tests (35 total). |
 | Production build | `npm.cmd run build` passed for shared, server, host, and controller. |
 | Root development command | `npm.cmd run dev` launched server, host, and player services on the documented ports. |
 | Windows launcher lifecycle | Verified stopped → Start → duplicate Start → Stop → harmless Stop → Start again. The host opened at `http://localhost:5183/`, all three endpoints responded, session metadata was cleaned, all Morder ports were released, and an unrelated Node process remained running. |
-| Live smoke | `npm.cmd run smoke` passed against running services: both pages, two isolated rooms, five-player lobby, invalid-room rejection, disconnect, and identity-preserving reconnect. |
-| Browser flow | Manually verified room creation, local QR rendering, LAN join URL, URL-prefilled join, realtime host update, player confirmation, refresh recovery, and no duplicate lobby entry. |
-| Physical phone/LAN | Verified from the uncommitted local working copy: a real phone scanned the QR, opened the prefilled player page over the same Wi-Fi, joined, and appeared on the host without refresh. |
+| Live smoke | `npm.cmd run smoke` passed against running services: both pages, two isolated rooms, five-player lobby, photo upload/replacement, photo-preserving reconnect, roster lock, rejected new join, and rejected post-lock photo change. |
+| Browser flow | Independently verified join, pre-lock refresh without duplication, live lock notification, post-lock refresh/reconnect, locked waiting UI, and clear rejection of a separate new-browser join. |
+| Physical phone/LAN | Verified from the uncommitted local working copy: a real phone scanned the QR, joined over Wi-Fi, captured/uploaded a correctly oriented camera photo, appeared with that photo on the host, and remained present when the roster was locked. |
 
 ## Next task
 
-### M0c — Complete photo onboarding and host start/lock
+### M1 — Minimal playable Murder
 
-**Purpose:** Finish the smallest M0 onboarding loop so a host can recognize the
-people in the room and deliberately close the lobby before future game logic.
+**Purpose:** Test whether Morder's smallest complete Murder loop creates the
+intended face-to-face social experience.
 
 **Scope:**
 
-- let a joining player take or choose one photo with the phone's standard file
-  input;
-- normalize it to a modest square image with a strict size bound;
-- validate it on the server, retain it only for the in-memory room lifetime,
-  and show it on the public lobby card;
-- add an explicit host start/lock action that closes joining and confirms M0
-  onboarding is complete, without assigning roles or entering a game phase;
-- retain useful name/connection states and joining fallbacks; and
-- add focused protocol, server, and UI tests plus a real-phone check.
+- assign exactly one Murderer and make all remaining players Civilians;
+- privately reveal each player's own role;
+- run server-authoritative night selection and resolution, public discussion,
+  private voting, elimination, win checks, and repeat/result transitions;
+- eliminate nobody on a tied vote for this first implementation; and
+- keep every secret out of the public host and unauthorized player payloads.
 
 **Constraints:**
 
-- no roles, phase engine, night actions, voting, win conditions, persistent
-  profiles, cloud storage, or general-purpose image pipeline;
-- photo bytes and metadata must not create a hidden-information path or outlive
-  the ephemeral room; and
-- define the smallest clear behavior for attempted joins after the host locks
-  the lobby.
+- no Doctor, Sheriff, later roles, accounts, persistence, matchmaking, timers,
+  role plugins, or generalized game platform;
+- server owns complete state and emits explicit public-host and per-player
+  projections; and
+- stop once the minimal loop is ready for the first real social playtest.
 
 **Acceptance checks:**
 
-- a real phone can take or choose a photo and join without cumbersome editing;
-- the host shows each joined player's bounded temporary photo and name;
-- invalid or oversized image data is rejected safely;
-- photos disappear with the room and are not written to durable storage;
-- the host can start/lock the lobby and further join attempts receive a clear
-  result; and
-- typecheck, tests, build, live smoke, and a documented physical check pass.
+- the locked roster can start one complete game;
+- each player receives only their own role/action state;
+- only the Murderer can submit a valid night target;
+- the host receives only public phase/outcome information;
+- private votes resolve correctly, including no elimination on a tie;
+- elimination and win conditions end or continue the game correctly; and
+- focused domain, projection, integration, and browser checks pass.
 
-**Stop condition:** Stop after photo onboarding and the lobby start/lock
-boundary are verified. Do not assign roles or implement gameplay.
+**Stop condition:** Stop after the one-Murderer/Civilian loop is verified and
+ready for the first social playtest. Do not add Doctor or Sheriff.
 
 ## Decisions
 
@@ -132,17 +148,21 @@ Only deliberate decisions are summarized here. Full records are in
   an earlier socket; they are not permanent users.
 - The host generates its QR locally from the public player URL and keeps manual
   URL/code entry as a fallback.
+- Temporary photos are optional, normalized on the phone, bounded again by the
+  server, kept only in room memory, and fetched separately from lobby state.
+- Roster lock is a one-way server-owned transition that rejects new joins and
+  photo changes while preserving valid reconnects.
 - M1 uses one Murderer and otherwise Civilians; M2 is limited to Doctor and
   Sheriff additions.
 
 ## Open questions
 
-- What minimum and maximum player counts should M0 and M1 support?
+- What minimum and maximum player counts should M1 support?
 - When should a host be allowed to remove an abandoned lobby identity?
 - Should host refresh close the room initially, or is host recovery required
   before the first social playtest?
-- What minimum photo crop, resolution, byte limit, and fallback avatar are
-  sufficient on real phones?
+- Is the current 512 px / 400 KiB photo treatment and initial fallback
+  sufficient across the phones used in the first social playtest?
 - What neutral night interaction should Civilians perform so phone use does not
   reveal special roles?
 - Should night phases use a fixed timer, a hidden completion delay, or another

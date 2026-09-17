@@ -2,11 +2,11 @@
 
 ## Status
 
-The M0a/M0b room-and-join foundation implements the repository, transport,
-room, projection, reconnect, local-network, QR, and testing boundaries
-described here. Game, role, voting, and photo sections remain forward
-constraints rather than implemented functionality. The architecture optimizes
-for the first in-room playtest, not theoretical scale.
+M0 implements the repository, transport, room, projection, reconnect,
+local-network, QR, temporary-photo, roster-lock, and testing boundaries
+described here. Game, role, and voting sections remain forward constraints.
+The architecture optimizes for the first in-room playtest, not theoretical
+scale.
 
 ## Repository and runtime shape
 
@@ -44,10 +44,10 @@ Internal room/game state
   └─ playerProjection(room, playerId) → only that player's socket
 ```
 
-M0a internal state contains host/socket indexes, membership, and reconnect
-capabilities. Future internal state may add roles, night actions, vote choices,
-investigation results, timers, and win state. None of those fields should
-automatically become protocol types.
+M0 internal state contains host/socket indexes, membership, reconnect
+capabilities, room status, and temporary photo bytes. Future internal state may
+add roles, night actions, vote choices, investigation results, timers, and win
+state. None of those fields should automatically become protocol types.
 
 M0a defines separate `PublicLobbyProjection`, `PublicLobbyPlayer`,
 `PrivatePlayerIdentity`, and `PlayerSession` wire types rather than `Omit`-ing
@@ -102,11 +102,12 @@ join-URL helpers. It does not export the internal authoritative state type.
 The current event families are deliberately small:
 
 - host room creation and LAN-address requests;
-- player join and reconnect requests;
-- public host lobby snapshots; and
+- player join, reconnect, and own-photo upload requests;
+- host roster lock requests;
+- public host lobby snapshots and minimal private player-state updates; and
 - player room-closed notices.
 
-Future start, game, photo, action, and vote events should extend these recipient
+Future game, action, and vote events should extend these recipient
 boundaries rather than broadening the current lobby payload.
 
 Use integration/type tests to prove event routing and serialized secret
@@ -129,6 +130,9 @@ maps, private targets, votes, reconnect tokens, or another player's result.
 - Host disconnect closes the room, invalidates its reconnect capabilities, and
   notifies connected players. Whether host refresh should recover a room is an
   explicit open question.
+- A room begins `open` and can move once to `locked`. The server owns that
+  transition. Locked rooms reject new identities and photo changes but accept
+  reconnect capabilities already belonging to the fixed roster.
 
 M0a tests cover room isolation, host authority, reconnect replacement, late
 disconnect safety, public token absence, and disposal. A deliberate player
@@ -160,25 +164,26 @@ machine network settings.
 
 ## Temporary player photos
 
-Use the phone's standard file input with `accept="image/*"` and the `capture`
-hint, allowing either camera capture or an existing image. Before upload, the
-controller should orient/crop to a simple square, resize to a modest resolution
-(a starting experiment around 320–512 px), and encode at a bounded quality.
+The phone uses separate standard file inputs for camera capture and gallery
+selection. It decodes normal phone orientation, preserves aspect ratio, limits
+the long edge to 512 px, and encodes JPEG at quality 0.82. The preview is a
+short-lived browser object URL; the original and normalized bytes are not
+stored in browser local storage.
 
-Upload once, validate a strict byte limit and supported media type on the
-server (including basic file-signature checking rather than trusting the
-client's MIME label), and keep the bytes only in memory. Store an opaque photo
-ID/revision in room state. Serve the photo from the same local server (or emit a
-bounded binary payload) and let clients use an object/HTTP URL; do not embed
-repeated base64 images in every room snapshot. Remove bytes on player removal,
-room closure, or server restart. Serve photo responses with `Cache-Control:
-no-store`, and revoke client object URLs when replaced or unmounted so temporary
-images are not retained longer than the prototype needs them.
+The normalized JPEG travels as a binary Socket.IO payload on the joined
+player's authenticated socket, so a client cannot name another player as the
+upload target. The server independently requires JPEG content/signature and a
+maximum 400 KiB payload, copies it into the in-memory player record, and
+increments `photoVersion` on replacement.
 
-The exact crop, resolution, format, byte cap, and fallback avatar should be
-measured on real iOS/Android browsers during M0 rather than treated as a
-permanent design. No cloud storage, face processing, profile library, or image
-history is needed.
+`PublicLobbyProjection` and private player state contain only the version, not
+raw bytes. The host and player fetch the current image from the room/player
+scoped HTTP endpoint using that version as a cache-busting query. The endpoint
+contains no reconnect capability, returns 404 outside the exact live
+room/player/photo scope, and serves with `Cache-Control: no-store`. Room closure,
+server restart, or manager disposal removes the only stored bytes. No cloud or
+filesystem storage, face processing, crop editor, profile library, or history
+exists.
 
 ## Frontend structure
 
@@ -187,18 +192,18 @@ different trust projections, screen constraints, and interaction goals. Within
 each, use small feature components rather than importing Buzz's coupled
 `App.tsx` files or visual system.
 
-M0a/M0b currently provide:
+M0 currently provides:
 
 - host: connection status, create-room action, LAN-address selection, locally
-  generated QR, copyable join URL, and a live public lobby with
-  connected/disconnected state; and
+  generated QR, copyable join URL, a live public photo/name lobby, and a
+  one-way roster-lock control; and
 - controller: connection status, URL-prefilled/manual join form, join errors,
   private session confirmation, stored reconnect session, refresh restoration,
-  and room-closed handling.
+  camera/gallery photo preparation, own-photo upload/replacement, minimal room
+  status, locked waiting UI, and room-closed handling.
 
-Photo and start/lock components do not exist yet. Add them as focused feature
-components in the remaining M0 slice. There is no shared frontend or
-design-system package; introduce a shared helper only after real duplication.
+There is no shared frontend or design-system package; introduce a shared helper
+only after real duplication.
 
 Private phone state must be cleared or replaced when reconnect restoration
 fails or the room closes. Avoid logging protocol payloads containing role or
@@ -223,14 +228,16 @@ Use the proven Buzz test shape, adapted to hidden information:
   real phones, television readability, network friction, and interaction
   leakage. Automated tests cannot replace this evidence.
 
-M0a/M0b currently have 26 automated tests across host QR rendering, shared URL
-behavior, room codes, network-address filtering, room/session behavior,
-Socket.IO routing, malformed and unauthorized events, room isolation, more
-than four players, public token absence, and reconnect replacement. The
-repository smoke test starts from the real HTTP/Socket.IO surfaces and checks
-two rooms, five joins, invalid-room rejection, disconnect, and
-identity-preserving reconnect. The host/player flow was also exercised in real
-browser UIs, and same-Wi-Fi QR joining was verified with a physical phone.
+M0 currently has 35 automated tests across controller photo preparation, host
+QR rendering, shared URL behavior, room codes, network-address filtering,
+room/session behavior, Socket.IO routing, photo validation/lifetime, lock
+semantics, malformed and unauthorized events, room isolation, more than four
+players, projection boundaries, and reconnect replacement. The repository
+smoke test starts from the real HTTP/Socket.IO surfaces and checks two rooms,
+five joins, binary photo replacement, photo-preserving reconnect, and roster
+lock. The host/player lifecycle was exercised in real browser UIs, and a
+same-Wi-Fi physical phone verified QR join plus correctly oriented camera-photo
+upload and host rendering.
 
 Inject clocks, randomness, schedulers, and role allocation into the M1 game
 module so night, discussion, vote, and tie behavior can be tested without real

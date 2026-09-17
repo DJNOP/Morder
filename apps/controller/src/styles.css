@@ -165,15 +165,51 @@ button:disabled {
   text-align: center;
 }
 
-.confirmation-mark {
+.photo-preview {
   display: grid;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: min(14rem, 72vw);
+  aspect-ratio: 1;
   place-items: center;
-  margin: 0 auto 1.2rem;
-  border-radius: 50%;
-  background: #2f9e63;
-  font-size: 1.8rem;
+  margin: 1rem auto 1.25rem;
+  overflow: hidden;
+  border: 1px solid #4a4c52;
+  border-radius: 1rem;
+  background: #292b30;
+  color: #e7d9b8;
+  font-size: 4rem;
+  font-weight: 850;
+}
+
+.photo-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.photo-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.7rem;
+  margin-top: 1.25rem;
+}
+
+.secondary-button {
+  border: 1px solid #5a5d64;
+  background: #292b30;
+  color: #f5f3ed;
+}
+
+.save-photo-button {
+  width: 100%;
+  margin-top: 0.75rem;
+  background: #51c886;
+}
+
+.photo-status {
+  margin: 0.8rem 0 0;
+  color: #bdb7a9;
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .waiting {
@@ -183,6 +219,18 @@ button:disabled {
   background: #17181b;
   color: #d8d4ca;
   font-weight: 700;
+}
+
+.waiting--locked {
+  border: 1px solid #4d4839;
+  background: #262219;
+  color: #e7d9b8;
+}
+
+@media (max-width: 390px) {
+  .photo-actions {
+    grid-template-columns: 1fr;
+  }
 }
 
 footer {

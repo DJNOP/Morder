@@ -99,3 +99,34 @@ send join data to an external QR service.
 The visible room code, copyable URL, address selector when needed, and manual
 code entry remain available as fallbacks. This is a focused M0 implementation,
 not a commitment to a general QR abstraction or visual component library.
+
+## D-008 — Temporary room-scoped player photos
+
+- **Date:** 2026-09-17
+- **Status:** Provisional, implemented for M0
+
+Player photos are optional public room information for the initial prototype.
+The phone normalizes and compresses an image before binary upload, and the
+server independently validates its type, signature, and hard byte limit. Bytes
+belong to the server-side player record only for the in-memory room lifetime;
+they are never written to durable storage.
+
+Ordinary lobby and private-state projections carry only a lightweight photo
+version. Clients fetch bytes separately from a room/player-scoped temporary
+endpoint, so routine state broadcasts do not resend every image. This is not a
+profile, permanent avatar, photo library, or commitment to the current exact
+resolution and JPEG settings.
+
+## D-009 — Server-authoritative one-way roster lock
+
+- **Date:** 2026-09-17
+- **Status:** Provisional, implemented for M0
+
+The server owns the room's `open` or `locked` status. The host can make the
+one-way transition after at least one player joins; photos remain optional.
+Once locked, the roster cannot gain new identities and player photos cannot be
+changed, while valid room-lifetime reconnect capabilities continue to restore
+existing players without duplication.
+
+M0 provides no unlock/reset flow and does not treat locking as gameplay start.
+A host creates a fresh room when onboarding must restart.

@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   HOST_CREATE_ROOM_EVENT,
   HOST_GET_NETWORK_ADDRESSES_EVENT,
+  HOST_LOCK_ROOM_EVENT,
   HOST_LOBBY_STATE_EVENT,
   buildPlayerJoinUrl,
+  buildPlayerPhotoUrl,
   type LocalNetworkAddress,
   type PublicLobbyProjection,
 } from "@morder/shared";
@@ -33,6 +35,8 @@ export const App = () => {
   >(null);
   const [selectedAddress, setSelectedAddress] = useState("");
   const [copyStatus, setCopyStatus] = useState("");
+  const [isLocking, setIsLocking] = useState(false);
+  const [lockError, setLockError] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -63,6 +67,7 @@ export const App = () => {
       setConnectionMessage("Disconnected — this room has closed");
       setLobby(undefined);
       setIsCreating(false);
+      setIsLocking(false);
     };
     const onConnectError = (error: Error) => {
       setConnectionState("error");
@@ -72,6 +77,8 @@ export const App = () => {
       setLobby(nextLobby);
       setCreateError("");
       setIsCreating(false);
+      setIsLocking(false);
+      setLockError("");
     };
 
     hostSocket.on("connect", onConnect);
@@ -113,6 +120,22 @@ export const App = () => {
   );
   const usesLoopback = joinAddress === "localhost" || joinAddress === "127.0.0.1";
 
+  const lockRoster = () => {
+    if (!lobby || lobby.roomStatus !== "open" || isLocking) {
+      return;
+    }
+    setIsLocking(true);
+    setLockError("");
+    hostSocket.emit(HOST_LOCK_ROOM_EVENT, (result) => {
+      setIsLocking(false);
+      if (result.ok) {
+        setLobby(result.lobby);
+        return;
+      }
+      setLockError(result.error.message);
+    });
+  };
+
   return (
     <main className="host-shell">
       <header className="host-header">
@@ -150,9 +173,18 @@ export const App = () => {
           <section className="join-card" aria-label="Room joining information">
             <p className="section-label">Room code</p>
             <strong className="room-code">{lobby.roomCode}</strong>
-            <p>Scan to join, open the link, or enter the room code manually.</p>
+            <p>
+              {lobby.roomStatus === "open"
+                ? "Scan to join, open the link, or enter the room code manually."
+                : "The roster is locked. Existing players can still reconnect."}
+            </p>
 
-            {networkAddresses === null ? (
+            {lobby.roomStatus === "locked" ? (
+              <div className="locked-notice">
+                <strong>Roster locked</strong>
+                <span>No new players or photo changes are accepted.</span>
+              </div>
+            ) : networkAddresses === null ? (
               <p className="network-message" role="status">
                 Finding this computer on the local network…
               </p>
@@ -241,12 +273,59 @@ export const App = () => {
               <ul className="player-list">
                 {lobby.players.map((player) => (
                   <li key={player.id} className={`player player--${player.connectionState}`}>
-                    <span className="player-dot" aria-hidden="true" />
-                    <strong>{player.displayName}</strong>
-                    <span>{player.connectionState}</span>
+                    <div className="player-photo">
+                      {player.photoVersion == null ? (
+                        <span aria-hidden="true">
+                          {player.displayName.slice(0, 1).toUpperCase()}
+                        </span>
+                      ) : (
+                        <img
+                          src={buildPlayerPhotoUrl(
+                            serverUrl,
+                            lobby.roomCode,
+                            player.id,
+                            player.photoVersion,
+                          )}
+                          alt={`${player.displayName}'s photo`}
+                        />
+                      )}
+                    </div>
+                    <div className="player-details">
+                      <strong>{player.displayName}</strong>
+                      <span>
+                        <i className="player-dot" aria-hidden="true" />
+                        {player.connectionState}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>
+            )}
+
+            {lobby.roomStatus === "open" ? (
+              <div className="roster-controls">
+                <p>
+                  Photos are encouraged but optional. Locking fixes this roster
+                  for the next development step.
+                </p>
+                <button
+                  type="button"
+                  className="lock-button"
+                  onClick={lockRoster}
+                  disabled={
+                    connectionState !== "connected" ||
+                    isLocking ||
+                    lobby.players.length === 0
+                  }
+                >
+                  {isLocking ? "Locking…" : "Lock roster"}
+                </button>
+                {lockError ? <p className="error" role="alert">{lockError}</p> : null}
+              </div>
+            ) : (
+              <div className="roster-locked-status" role="status">
+                Roster locked · waiting for gameplay development
+              </div>
             )}
           </section>
         </div>

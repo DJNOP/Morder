@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildPlayerJoinUrl,
+  buildPlayerPhotoUrl,
   parseRoomQuery,
   removeRoomQueryFromUrl,
 } from "../src/index.js";
@@ -15,6 +16,19 @@ describe("player join URL", () => {
   it("encodes room values instead of interpolating query text", () => {
     expect(buildPlayerJoinUrl("10.0.0.2", "AB&C", 6000)).toBe(
       "http://10.0.0.2:6000/?room=AB%26C",
+    );
+  });
+
+  it("constructs a versioned public photo URL without private identity", () => {
+    expect(
+      buildPlayerPhotoUrl(
+        "http://192.168.1.42:3101",
+        "ABCD",
+        "player/one",
+        2,
+      ),
+    ).toBe(
+      "http://192.168.1.42:3101/rooms/ABCD/players/player%2Fone/photo?v=2",
     );
   });
 

@@ -5,15 +5,23 @@ import {
   CONNECTION_ROLES,
   HOST_CREATE_ROOM_EVENT,
   HOST_GET_NETWORK_ADDRESSES_EVENT,
+  HOST_LOCK_ROOM_EVENT,
   HOST_LOBBY_STATE_EVENT,
+  PLAYER_PHOTO_CONTENT_TYPE,
+  PLAYER_PHOTO_MAX_BYTES,
+  PLAYER_PHOTO_UPLOAD_EVENT,
   PLAYER_JOIN_ROOM_EVENT,
   PLAYER_RECONNECT_EVENT,
   PLAYER_ROOM_CLOSED_EVENT,
+  PLAYER_STATE_EVENT,
   type ClientToServerEvents,
   type ConnectionRole,
   type CreateRoomResult,
   type JoinRoomResult,
+  type LockRoomResult,
+  type PlayerPhotoUploadResult,
   type PlayerSession,
+  type PrivatePlayerState,
   type PublicLobbyProjection,
   type ReconnectPlayerResult,
   type RoomClosedNotice,
@@ -99,6 +107,29 @@ const reconnect = (client: TypedClient, reconnectToken: string) =>
   new Promise<ReconnectPlayerResult>((resolve) =>
     client.emit(PLAYER_RECONNECT_EVENT, { reconnectToken }, resolve),
   );
+
+const lockRoom = (client: TypedClient) =>
+  new Promise<LockRoomResult>((resolve) =>
+    client.emit(HOST_LOCK_ROOM_EVENT, resolve),
+  );
+
+const uploadPhoto = (client: TypedClient, data: ArrayBuffer) =>
+  new Promise<PlayerPhotoUploadResult>((resolve) =>
+    client.emit(
+      PLAYER_PHOTO_UPLOAD_EVENT,
+      { contentType: PLAYER_PHOTO_CONTENT_TYPE, data },
+      resolve,
+    ),
+  );
+
+const jpeg = (...payload: number[]) =>
+  Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, ...payload, 0xff, 0xd9]);
+
+const asArrayBuffer = (bytes: Uint8Array) =>
+  bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
 
 const waitForEvent = <Payload>(
   socket: TypedClient,
@@ -203,6 +234,7 @@ describe("Morder lobby Socket.IO transport", () => {
     ]);
     expect(JSON.stringify(firstLobby)).not.toContain(sessionOne.reconnectToken);
     expect(JSON.stringify(firstLobby)).not.toContain("reconnectToken");
+    expect(JSON.stringify(firstLobby)).not.toContain("bytes");
 
     const hostTwoLobby = waitForEvent<PublicLobbyProjection>(
       hostTwo,
@@ -295,6 +327,119 @@ describe("Morder lobby Socket.IO transport", () => {
       session: { self: { id: originalSession.self.id, displayName: "Ada" } },
     });
     await restoredLobby;
+  });
+
+  it("uploads versioned photos separately, locks the roster, and preserves reconnect", async () => {
+    const server = await startServer();
+    const host = await connectClient(server.url, CONNECTION_ROLES.host);
+    const player = await connectClient(server.url, CONNECTION_ROLES.player);
+    const room = expectCreated(await createRoom(host));
+    const session = expectJoined(await joinRoom(player, room.roomCode, "Ada"));
+
+    const photoLobby = waitForEvent<PublicLobbyProjection>(
+      host,
+      HOST_LOBBY_STATE_EVENT,
+      (lobby) => lobby.players[0]?.photoVersion === 1,
+    );
+    await expect(
+      uploadPhoto(player, asArrayBuffer(jpeg(1, 2, 3))),
+    ).resolves.toMatchObject({
+      ok: true,
+      playerState: { roomStatus: "open", self: { photoVersion: 1 } },
+    });
+    const projected = await photoLobby;
+    expect(JSON.stringify(projected)).not.toContain("bytes");
+    expect(JSON.stringify(projected)).not.toContain(session.reconnectToken);
+
+    const photoUrl = `${server.url}/rooms/${room.roomCode}/players/${session.self.id}/photo?v=1`;
+    const photoResponse = await fetch(photoUrl);
+    expect(photoResponse.status).toBe(200);
+    expect(photoResponse.headers.get("content-type")).toBe("image/jpeg");
+    expect(photoResponse.headers.get("cache-control")).toBe("no-store");
+    expect(new Uint8Array(await photoResponse.arrayBuffer())).toEqual(
+      jpeg(1, 2, 3),
+    );
+    await expect(
+      fetch(`${server.url}/rooms/EFGH/players/${session.self.id}/photo`),
+    ).resolves.toMatchObject({ status: 404 });
+    await expect(
+      fetch(`${server.url}/rooms/${room.roomCode}/players/missing/photo`),
+    ).resolves.toMatchObject({ status: 404 });
+
+    await expect(
+      uploadPhoto(player, new ArrayBuffer(PLAYER_PHOTO_MAX_BYTES + 1)),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: "photo_too_large" },
+    });
+
+    const replacementLobby = waitForEvent<PublicLobbyProjection>(
+      host,
+      HOST_LOBBY_STATE_EVENT,
+      (lobby) => lobby.players[0]?.photoVersion === 2,
+    );
+    await expect(
+      uploadPhoto(player, asArrayBuffer(jpeg(9, 8, 7))),
+    ).resolves.toMatchObject({
+      ok: true,
+      playerState: { self: { photoVersion: 2 } },
+    });
+    await replacementLobby;
+
+    const lockedPlayerState = waitForEvent<PrivatePlayerState>(
+      player,
+      PLAYER_STATE_EVENT,
+      (state) => state.roomStatus === "locked",
+    );
+    await expect(lockRoom(host)).resolves.toMatchObject({
+      ok: true,
+      lobby: { roomStatus: "locked" },
+    });
+    const privateLockedState = await lockedPlayerState;
+    expect(privateLockedState).toMatchObject({
+      roomCode: room.roomCode,
+      roomStatus: "locked",
+      self: { id: session.self.id, photoVersion: 2 },
+    });
+    expect(Object.keys(privateLockedState).sort()).toEqual([
+      "roomCode",
+      "roomStatus",
+      "self",
+    ]);
+    expect(JSON.stringify(privateLockedState)).not.toContain("reconnectToken");
+    expect(JSON.stringify(privateLockedState)).not.toContain("players");
+
+    const newcomer = await connectClient(server.url, CONNECTION_ROLES.player);
+    await expect(joinRoom(newcomer, room.roomCode, "Grace")).resolves.toMatchObject({
+      ok: false,
+      error: { code: "room_locked" },
+    });
+    await expect(
+      uploadPhoto(player, asArrayBuffer(jpeg(4))),
+    ).resolves.toMatchObject({
+      ok: false,
+      error: { code: "room_locked" },
+    });
+
+    player.disconnect();
+    const restoredPlayer = await connectClient(
+      server.url,
+      CONNECTION_ROLES.player,
+    );
+    await expect(
+      reconnect(restoredPlayer, session.reconnectToken),
+    ).resolves.toMatchObject({
+      ok: true,
+      session: {
+        roomStatus: "locked",
+        self: { id: session.self.id, photoVersion: 2 },
+      },
+    });
+
+    host.disconnect();
+    await vi.waitFor(async () => {
+      expect((await fetch(photoUrl)).status).toBe(404);
+    });
   });
 
   it("notifies players and invalidates sessions when the host disconnects", async () => {
