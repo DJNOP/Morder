@@ -2,7 +2,7 @@
 
 - **Updated:** 2026-09-17
 - **Phase:** M0 — Multiplayer skeleton
-- **Implementation state:** M0b QR joining implemented and physically verified
+- **Implementation state:** M0b verified; Windows start/stop workflow implemented
 
 ## Current objective
 
@@ -28,6 +28,10 @@ start/lock action.
 - Native npm workspaces now contain separate React/Vite host and phone clients,
   a Node/Socket.IO server, and a built shared TypeScript protocol package.
 - `npm.cmd run dev` launches all three services after building shared contracts.
+- `START_MORDER.cmd` launches that canonical development command in a dedicated
+  window, waits for ports 3101/5183/5184 and the host page, then opens the host
+  automatically. `STOP_MORDER.cmd` stops only the recorded Morder process tree.
+  Repeated Start reuses the tracked session, and repeated Stop is harmless.
 - Hosts create one ephemeral room with a random four-character code. Several
   rooms can coexist, and updates route only to the owning host.
 - Players join by a validated room code and unique display name. The lobby has
@@ -64,6 +68,7 @@ start/lock action.
 | Automated tests | `npm.cmd test` passed: 1 host QR test, 20 server/domain/integration tests, and 5 shared URL tests. |
 | Production build | `npm.cmd run build` passed for shared, server, host, and controller. |
 | Root development command | `npm.cmd run dev` launched server, host, and player services on the documented ports. |
+| Windows launcher lifecycle | Verified stopped → Start → duplicate Start → Stop → harmless Stop → Start again. The host opened at `http://localhost:5183/`, all three endpoints responded, session metadata was cleaned, all Morder ports were released, and an unrelated Node process remained running. |
 | Live smoke | `npm.cmd run smoke` passed against running services: both pages, two isolated rooms, five-player lobby, invalid-room rejection, disconnect, and identity-preserving reconnect. |
 | Browser flow | Manually verified room creation, local QR rendering, LAN join URL, URL-prefilled join, realtime host update, player confirmation, refresh recovery, and no duplicate lobby entry. |
 | Physical phone/LAN | Verified from the uncommitted local working copy: a real phone scanned the QR, opened the prefilled player page over the same Wi-Fi, joined, and appeared on the host without refresh. |

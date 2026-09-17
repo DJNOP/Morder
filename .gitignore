@@ -17,6 +17,7 @@ coverage/
 npm-debug.log*
 *.pid
 *.pid.lock
+.morder-runtime/
 
 # Tool caches
 .cache/

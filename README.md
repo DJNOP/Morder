@@ -12,6 +12,8 @@ M0a and M0b, the runnable room-and-join foundation plus QR-based LAN joining,
 are implemented:
 
 - one command starts the host, phone/player client, and Socket.IO server;
+- Windows launchers start the stack, open the host when it is ready, and stop
+  only the tracked Morder process tree;
 - a host creates an ephemeral room with a short non-ambiguous code;
 - the host shows a locally generated QR code, room-specific LAN join URL, and
   live public lobby;
@@ -38,10 +40,34 @@ packages/
   shared/       Typed wire protocol, validation, and join-URL utilities
 scripts/
   dev.mjs             Minimal multi-process development launcher
+  morder-session.ps1  Windows session tracking and safe start/stop helper
   smoke-lobby.mjs     Live room/join/reconnect smoke scenario
+START_MORDER.cmd       Double-click Windows launcher
+STOP_MORDER.cmd        Project-specific Windows shutdown
 ```
 
 The repository uses native npm workspaces without a monorepo framework.
+
+## Start and stop Morder on Windows
+
+The simplest local workflow is:
+
+1. Double-click `START_MORDER.cmd` in the repository root.
+2. Wait for the shared host to open automatically at
+   [http://localhost:5183](http://localhost:5183).
+3. Select **Create room**, then let phones scan the displayed QR code.
+4. Double-click `STOP_MORDER.cmd` when finished.
+
+Start uses the existing `npm.cmd run dev` stack and waits until the server,
+host, and phone app are listening before opening the browser. Starting again
+does not create a duplicate stack; it reopens the host for the existing tracked
+session.
+
+Stop terminates only the exact process tree recorded for the Morder launcher.
+It never kills Node or npm processes by image name, so Buzz and unrelated
+projects are left alone. Temporary session metadata lives in the ignored
+`.morder-runtime/` directory. Running Stop when Morder is already stopped is
+safe.
 
 ## Install and validate
 
@@ -59,16 +85,19 @@ On Windows, `npm.cmd` avoids execution-policy problems that may block
 `npm.ps1`. There is no formatter or linter yet; the current automated gates are
 strict TypeScript, Vitest tests, production builds, and the live smoke scenario.
 
-## Run on the local network
+## Command-line development and local-network play
 
 1. Connect the computer and player phones to the same trusted local network.
-2. Start all three processes from the repository root:
+2. Either use `START_MORDER.cmd`, or start all three processes from a terminal
+   in the repository root:
 
    ```powershell
    npm.cmd run dev
    ```
 
-3. Open the host at [http://localhost:5183](http://localhost:5183).
+3. If using the terminal command, open the host at
+   [http://localhost:5183](http://localhost:5183). The Windows launcher opens it
+   automatically.
 4. Select **Create room**.
 5. Scan the displayed QR code with a phone camera, or open the displayed player
    join URL. It uses the form
