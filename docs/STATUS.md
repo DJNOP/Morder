@@ -2,13 +2,14 @@
 
 - **Updated:** 2026-09-17
 - **Phase:** M0 — Multiplayer skeleton
-- **Implementation state:** M0a room-and-join foundation implemented and verified
+- **Implementation state:** M0b QR joining implemented and physically verified
 
 ## Current objective
 
-Complete M0 through small, testable slices. The room, join, LAN URL, realtime
-lobby, and reconnect foundation now works; the next slice should prove QR-based
-joining on a real phone without adding photos or gameplay.
+Complete the remaining M0 onboarding without adding gameplay. Room creation,
+QR joining, LAN reachability, names, realtime lobby updates, and reconnect now
+work; the next slice should add temporary photos and an explicit host
+start/lock action.
 
 ## Milestones
 
@@ -16,7 +17,8 @@ joining on a real phone without adding photos or gameplay.
 | --- | --- | --- |
 | Foundation | Audit Buzz, define project records and architecture | Complete |
 | M0a — Room and join foundation | Runnable host/player/server, rooms, names, lobby sync, reconnect | Complete |
-| M0 — Multiplayer skeleton | QR join, name, temporary photo, public lobby, start/lock | In progress |
+| M0b — QR joining and LAN acceptance | Local QR, manual fallback, and real-phone same-Wi-Fi join | Complete |
+| M0 — Multiplayer skeleton | Name, temporary photo, public lobby, start/lock | In progress |
 | M1 — Minimal playable Murder | Murderer + Civilians through night, discussion, vote, elimination, and result | Not started |
 | First real social playtest | Test social behavior, leakage, usability, and desire for another round | Not started |
 | M2 — Doctor + Sheriff | Add the initial special-role actions and resolution rules | Not started; gated by M1 playtest |
@@ -40,15 +42,16 @@ joining on a real phone without adding photos or gameplay.
 - Host disconnect closes the room, invalidates reconnect capabilities, and
   notifies connected players. Server restart also loses all rooms.
 - The server discovers usable LAN IPv4 candidates. The host shows a selectable
-  room-specific URL using `?room=<code>`; the player app prefills that code but
-  still requires a display name. Manual code entry remains available.
+  room-specific URL using `?room=<code>` and a high-contrast SVG QR generated
+  locally from that public URL. The player app prefills the code but still
+  requires a display name. Manual URL and code entry remain available.
+- A real phone successfully scanned the QR, reached the locally running player
+  app over the same Wi-Fi, joined the room, and appeared in the host lobby.
+  No address, room code, player name, or captured playtest data is retained.
 - Morder uses ports 5183 (host), 5184 (player), and 3101 (server), avoiding the
   active Buzz development stack on 5173/5174/3001.
-- QR rendering, player photos, lobby start/lock, and all gameplay remain
-  unimplemented.
-- [Issue #1](https://github.com/DJNOP/Morder/issues/1) tracks the exact M0b task
-  below. The
-  [Morder Development GitHub Project](https://github.com/users/DJNOP/projects/3)
+- Player photos, lobby start/lock, and all gameplay remain unimplemented.
+- The [Morder Development GitHub Project](https://github.com/users/DJNOP/projects/3)
   provides a concise `Done` / `Now` / `Next` / `Later` visual roadmap linked to
   this repository. This document remains the detailed source of truth.
 
@@ -56,53 +59,55 @@ joining on a real phone without adding photos or gameplay.
 
 | Check | Result |
 | --- | --- |
-| Dependency install | `npm.cmd install` completed; 90 packages audited, 0 vulnerabilities reported. |
+| Dependency install | `npm.cmd install` completed; 91 packages audited, 0 vulnerabilities reported. |
 | Type safety | `npm.cmd run typecheck` passed for all four workspaces. |
-| Automated tests | `npm.cmd test` passed: 20 server/domain/integration tests and 5 shared URL tests. |
+| Automated tests | `npm.cmd test` passed: 1 host QR test, 20 server/domain/integration tests, and 5 shared URL tests. |
 | Production build | `npm.cmd run build` passed for shared, server, host, and controller. |
 | Root development command | `npm.cmd run dev` launched server, host, and player services on the documented ports. |
 | Live smoke | `npm.cmd run smoke` passed against running services: both pages, two isolated rooms, five-player lobby, invalid-room rejection, disconnect, and identity-preserving reconnect. |
-| Browser flow | Manually verified room creation, LAN join URL, URL-prefilled join, realtime host update, player confirmation, refresh recovery, and no duplicate lobby entry. |
-| Physical phone/LAN | Not verified. The LAN address and all-interface bindings were mechanically observed, but no separate physical device was available. |
+| Browser flow | Manually verified room creation, local QR rendering, LAN join URL, URL-prefilled join, realtime host update, player confirmation, refresh recovery, and no duplicate lobby entry. |
+| Physical phone/LAN | Verified from the uncommitted local working copy: a real phone scanned the QR, opened the prefilled player page over the same Wi-Fi, joined, and appeared on the host without refresh. |
 
 ## Next task
 
-### [M0b — Add QR joining and run the physical LAN acceptance check][m0b-issue]
+### M0c — Complete photo onboarding and host start/lock
 
-**Purpose:** Remove manual link entry and prove that a real phone can reach the
-existing Morder room over the local network.
+**Purpose:** Finish the smallest M0 onboarding loop so a host can recognize the
+people in the room and deliberately close the lobby before future game logic.
 
 **Scope:**
 
-- render a local high-contrast QR code for the existing selected player join
-  URL using the focused Buzz-proven approach;
-- keep the visible room code, copyable URL, address selector, and manual code
-  entry as fallbacks;
-- add focused tests for QR input/link behavior where useful;
-- scan the QR with at least one real phone on the same LAN;
-- join, refresh, briefly interrupt the connection, and confirm the host lobby
-  reflects the same player identity; and
-- record actual firewall, VPN, guest-network, or camera issues encountered.
+- let a joining player take or choose one photo with the phone's standard file
+  input;
+- normalize it to a modest square image with a strict size bound;
+- validate it on the server, retain it only for the in-memory room lifetime,
+  and show it on the public lobby card;
+- add an explicit host start/lock action that closes joining and confirms M0
+  onboarding is complete, without assigning roles or entering a game phase;
+- retain useful name/connection states and joining fallbacks; and
+- add focused protocol, server, and UI tests plus a real-phone check.
 
 **Constraints:**
 
-- no player photos, camera upload, game start, roles, phases, voting, or visual
-  identity work;
-- the QR contains only the public player URL and room code, never a reconnect
-  capability; and
-- do not alter firewall/network settings automatically.
+- no roles, phase engine, night actions, voting, win conditions, persistent
+  profiles, cloud storage, or general-purpose image pipeline;
+- photo bytes and metadata must not create a hidden-information path or outlive
+  the ephemeral room; and
+- define the smallest clear behavior for attempted joins after the host locks
+  the lobby.
 
 **Acceptance checks:**
 
-- a real phone camera opens the correct `http://<local-ip>:5184/?room=<code>`
-  URL;
-- the room code is prefilled and the player joins without manually entering it;
-- the host updates without refresh;
-- manual joining still works when QR scanning is unavailable; and
-- typecheck, tests, build, live smoke, and the documented physical check pass.
+- a real phone can take or choose a photo and join without cumbersome editing;
+- the host shows each joined player's bounded temporary photo and name;
+- invalid or oversized image data is rejected safely;
+- photos disappear with the room and are not written to durable storage;
+- the host can start/lock the lobby and further join attempts receive a clear
+  result; and
+- typecheck, tests, build, live smoke, and a documented physical check pass.
 
-**Stop condition:** Stop after QR joining and real-device LAN reachability are
-verified and documented. Do not continue into the photo flow.
+**Stop condition:** Stop after photo onboarding and the lobby start/lock
+boundary are verified. Do not assign roles or implement gameplay.
 
 ## Decisions
 
@@ -120,6 +125,8 @@ Only deliberate decisions are summarized here. Full records are in
   Vitest.
 - Lobby reconnect identities last for the in-memory room lifetime and replace
   an earlier socket; they are not permanent users.
+- The host generates its QR locally from the public player URL and keeps manual
+  URL/code entry as a fallback.
 - M1 uses one Murderer and otherwise Civilians; M2 is limited to Doctor and
   Sheriff additions.
 
@@ -159,5 +166,3 @@ promote one only after a decision or playtest makes it actionable. Use the
 [Morder Development project](https://github.com/users/DJNOP/projects/3) as the
 lightweight visual overview; `docs/STATUS.md` remains the detailed source of
 truth.
-
-[m0b-issue]: https://github.com/DJNOP/Morder/issues/1

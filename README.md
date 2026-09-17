@@ -8,11 +8,13 @@ phone for private information and actions.
 
 ## Current state
 
-M0a, the runnable room-and-join foundation, is implemented:
+M0a and M0b, the runnable room-and-join foundation plus QR-based LAN joining,
+are implemented:
 
 - one command starts the host, phone/player client, and Socket.IO server;
 - a host creates an ephemeral room with a short non-ambiguous code;
-- the host shows a room-specific LAN join URL and live public lobby;
+- the host shows a locally generated QR code, room-specific LAN join URL, and
+  live public lobby;
 - players join with a validated display name;
 - joins and connection changes appear on the host without a refresh;
 - a private reconnect capability restores the same player after refresh or a
@@ -22,7 +24,7 @@ M0a, the runnable room-and-join foundation, is implemented:
   only its own private session; and
 - host disconnect or server restart closes the ephemeral room.
 
-There is no QR rendering, photo flow, game start, gameplay, role, voting, or
+There is no photo flow, lobby start/lock action, gameplay, role, voting, or
 persistent storage yet.
 
 ## Repository layout
@@ -68,8 +70,9 @@ strict TypeScript, Vitest tests, production builds, and the live smoke scenario.
 
 3. Open the host at [http://localhost:5183](http://localhost:5183).
 4. Select **Create room**.
-5. Open the displayed player join URL on another browser/device. It uses the
-   form `http://<local-ip>:5184/?room=<room-code>` and prefills the room code.
+5. Scan the displayed QR code with a phone camera, or open the displayed player
+   join URL. It uses the form
+   `http://<local-ip>:5184/?room=<room-code>` and prefills the room code.
 6. Enter a display name and join. The player should appear immediately on the
    host.
 
@@ -77,10 +80,13 @@ The Socket.IO server listens on `0.0.0.0:3101`; the host and player Vite servers
 listen on `0.0.0.0:5183` and `0.0.0.0:5184`. These Morder-specific ports avoid
 colliding with the local Buzz development stack.
 
-If several local addresses exist, the host allows choosing one. If none is
-detected, it shows a browser-hostname fallback and warns when that is loopback.
-Guest-network client isolation, VPN adapters, or a firewall can still prevent a
-phone from reaching the computer. Physical-phone access remains to be tested.
+The SVG QR is generated in the host browser from that public join URL; no
+external QR service or private reconnect capability is involved. If several
+local addresses exist, the host allows choosing one and updates the QR. If none
+is detected, it shows a browser-hostname fallback and warns when that is
+loopback. Same-Wi-Fi phone joining has been physically verified. Guest-network
+client isolation, VPN adapters, or a firewall can still prevent access on a
+different network.
 
 ## Live smoke check
 

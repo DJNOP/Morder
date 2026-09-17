@@ -7,6 +7,7 @@ import {
   type LocalNetworkAddress,
   type PublicLobbyProjection,
 } from "@morder/shared";
+import { JoinQrCode } from "./JoinQrCode";
 import { hostSocket, serverUrl } from "./socket";
 
 type ConnectionState = "connecting" | "connected" | "disconnected" | "error";
@@ -104,8 +105,11 @@ export const App = () => {
 
   const joinAddress = selectedAddress || window.location.hostname;
   const joinUrl = useMemo(
-    () => (lobby ? buildPlayerJoinUrl(joinAddress, lobby.roomCode) : ""),
-    [joinAddress, lobby],
+    () =>
+      lobby && networkAddresses !== null
+        ? buildPlayerJoinUrl(joinAddress, lobby.roomCode)
+        : "",
+    [joinAddress, lobby, networkAddresses],
   );
   const usesLoopback = joinAddress === "localhost" || joinAddress === "127.0.0.1";
 
@@ -146,55 +150,79 @@ export const App = () => {
           <section className="join-card" aria-label="Room joining information">
             <p className="section-label">Room code</p>
             <strong className="room-code">{lobby.roomCode}</strong>
-            <p>Players can open this link or enter the room code manually.</p>
+            <p>Scan to join, open the link, or enter the room code manually.</p>
 
-            {networkAddresses && networkAddresses.length > 1 ? (
-              <label>
-                Local network address
-                <select
-                  value={selectedAddress}
-                  onChange={(event) => {
-                    setSelectedAddress(event.target.value);
-                    setCopyStatus("");
-                  }}
-                >
-                  {networkAddresses.map((candidate) => (
-                    <option key={candidate.address} value={candidate.address}>
-                      {candidate.address}
-                      {candidate.isPrivate ? " — private network" : " — other"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-
-            <label>
-              Player join URL
-              <div className="copy-row">
-                <input value={joinUrl} readOnly onFocus={(event) => event.currentTarget.select()} />
-                <button
-                  type="button"
-                  onClick={() => {
-                    void copyText(joinUrl)
-                      .then(() => setCopyStatus("Copied"))
-                      .catch(() => setCopyStatus("Select and copy the link"));
-                  }}
-                >
-                  Copy
-                </button>
-              </div>
-            </label>
-            <span className="copy-status" role="status">{copyStatus}</span>
-
-            {usesLoopback ? (
-              <p className="warning">
-                No LAN address was detected. This loopback link works only on
-                this computer; manual network configuration may be required.
+            {networkAddresses === null ? (
+              <p className="network-message" role="status">
+                Finding this computer on the local network…
               </p>
             ) : (
-              <p className="network-note">
-                Keep the host and phones on the same trusted local network.
-              </p>
+              <>
+                <JoinQrCode joinUrl={joinUrl} roomCode={lobby.roomCode} />
+                <p className="qr-caption">
+                  Generated locally from the public player link only.
+                </p>
+
+                {networkAddresses.length > 1 ? (
+                  <label>
+                    Local network address
+                    <select
+                      value={selectedAddress}
+                      onChange={(event) => {
+                        setSelectedAddress(event.target.value);
+                        setCopyStatus("");
+                      }}
+                    >
+                      {networkAddresses.map((candidate) => (
+                        <option key={candidate.address} value={candidate.address}>
+                          {candidate.address}
+                          {candidate.isPrivate
+                            ? " — private network"
+                            : " — other"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+
+                <label>
+                  Player join URL
+                  <div className="copy-row">
+                    <input
+                      value={joinUrl}
+                      readOnly
+                      onFocus={(event) => event.currentTarget.select()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void copyText(joinUrl)
+                          .then(() => setCopyStatus("Copied"))
+                          .catch(() =>
+                            setCopyStatus("Select and copy the link"),
+                          );
+                      }}
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </label>
+                <span className="copy-status" role="status">
+                  {copyStatus}
+                </span>
+
+                {usesLoopback ? (
+                  <p className="warning">
+                    No LAN address was detected. This loopback link works only
+                    on this computer; manual network configuration may be
+                    required.
+                  </p>
+                ) : (
+                  <p className="network-note">
+                    Keep the host and phones on the same trusted local network.
+                  </p>
+                )}
+              </>
             )}
           </section>
 

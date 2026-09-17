@@ -85,3 +85,17 @@ server restart closes the room and invalidates the capability.
 
 This is ephemeral room identity, not an account or permanent profile. Player
 removal, reconnect expiry, and host recovery remain open design questions.
+
+## D-007 — Local public join QR
+
+- **Date:** 2026-09-17
+- **Status:** Provisional, implemented for M0
+
+The host renders a high-contrast SVG QR locally with `qrcode.react`. Its value
+is exactly the public room-specific player URL, so it contains the room code
+but never a reconnect capability or other private session data. Morder does not
+send join data to an external QR service.
+
+The visible room code, copyable URL, address selector when needed, and manual
+code entry remain available as fallbacks. This is a focused M0 implementation,
+not a commitment to a general QR abstraction or visual component library.

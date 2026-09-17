@@ -2,11 +2,11 @@
 
 ## Status
 
-The M0a room-and-join foundation implements the repository, transport, room,
-projection, reconnect, local-network, and testing boundaries described here.
-Game, role, voting, and photo sections remain forward constraints rather than
-implemented functionality. The architecture optimizes for the first in-room
-playtest, not theoretical scale.
+The M0a/M0b room-and-join foundation implements the repository, transport,
+room, projection, reconnect, local-network, QR, and testing boundaries
+described here. Game, role, voting, and photo sections remain forward
+constraints rather than implemented functionality. The architecture optimizes
+for the first in-room playtest, not theoretical scale.
 
 ## Repository and runtime shape
 
@@ -146,12 +146,17 @@ M0a implements the reusable parts of Buzz's local-network approach:
 - prefill but do not auto-submit the room join; and
 - preserve manual room-code entry as the reliable fallback.
 
-M0b should render that existing public URL as a high-contrast QR code locally
-in the host browser. The QR must contain only the player URL and room code, not
-a reconnect capability. Local all-interface binding and browser behavior have
-been verified, but real-phone reachability has not. The physical acceptance
-pass should cover a real camera, reload, brief network loss, and any firewall,
-VPN, guest-network, or client-isolation problems actually encountered.
+M0b adds `qrcode.react` and renders that existing public URL as a high-contrast
+SVG in the host browser with error-correction level M and a quiet margin. The
+QR is generated locally, changes with the selected address, and contains only
+the player URL and room code—not a reconnect capability or other private data.
+The visible/copyable URL and manual room-code entry remain fallbacks.
+
+A real phone has scanned the QR, opened the player page, joined over the same
+Wi-Fi, and appeared in the host lobby. Other networks may still expose
+firewall, VPN, guest-network, or client-isolation problems and should be treated
+as environment-specific troubleshooting rather than automatically changing
+machine network settings.
 
 ## Temporary player photos
 
@@ -182,16 +187,17 @@ different trust projections, screen constraints, and interaction goals. Within
 each, use small feature components rather than importing Buzz's coupled
 `App.tsx` files or visual system.
 
-M0a currently provides:
+M0a/M0b currently provide:
 
-- host: connection status, create-room action, LAN-address selection, copyable
-  join URL, and a live public lobby with connected/disconnected state; and
+- host: connection status, create-room action, LAN-address selection, locally
+  generated QR, copyable join URL, and a live public lobby with
+  connected/disconnected state; and
 - controller: connection status, URL-prefilled/manual join form, join errors,
   private session confirmation, stored reconnect session, refresh restoration,
   and room-closed handling.
 
-QR, photo, and start/lock components do not exist yet. Add them as focused
-feature components when their M0 slice begins. There is no shared frontend or
+Photo and start/lock components do not exist yet. Add them as focused feature
+components in the remaining M0 slice. There is no shared frontend or
 design-system package; introduce a shared helper only after real duplication.
 
 Private phone state must be cleared or replaced when reconnect restoration
@@ -217,13 +223,14 @@ Use the proven Buzz test shape, adapted to hidden information:
   real phones, television readability, network friction, and interaction
   leakage. Automated tests cannot replace this evidence.
 
-M0a currently has 25 automated tests across shared URL behavior, room codes,
-network-address filtering, room/session behavior, Socket.IO routing, malformed
-and unauthorized events, room isolation, more than four players, public token
-absence, and reconnect replacement. The repository smoke test starts from the
-real HTTP/Socket.IO surfaces and checks two rooms, five joins, invalid-room
-rejection, disconnect, and identity-preserving reconnect. The host/player flow
-was also exercised in real browser UIs; a physical phone remains unverified.
+M0a/M0b currently have 26 automated tests across host QR rendering, shared URL
+behavior, room codes, network-address filtering, room/session behavior,
+Socket.IO routing, malformed and unauthorized events, room isolation, more
+than four players, public token absence, and reconnect replacement. The
+repository smoke test starts from the real HTTP/Socket.IO surfaces and checks
+two rooms, five joins, invalid-room rejection, disconnect, and
+identity-preserving reconnect. The host/player flow was also exercised in real
+browser UIs, and same-Wi-Fi QR joining was verified with a physical phone.
 
 Inject clocks, randomness, schedulers, and role allocation into the M1 game
 module so night, discussion, vote, and tie behavior can be tested without real
