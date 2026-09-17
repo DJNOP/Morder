@@ -6,19 +6,93 @@ phone for private information and actions.
 
 > The software runs the game, but the people in the room are the game.
 
-The project is currently in foundation planning. No game or multiplayer
-application has been implemented yet.
+## Current state
 
-## Product shape
+M0a, the runnable room-and-join foundation, is implemented:
 
-- The shared screen owns the public lobby, phase, timer, announcements, living
-  players, voting outcomes, result, and final reveal.
-- Phones are private controllers for joining, a temporary photo, secret role
-  information, night actions, investigations, and voting.
-- The server will own the complete authoritative state. Every client will
-  receive a deliberately limited projection of that state.
-- The first target is a small local-network prototype for a real playtest with
-  friends—not accounts, matchmaking, persistence, monetisation, or native apps.
+- one command starts the host, phone/player client, and Socket.IO server;
+- a host creates an ephemeral room with a short non-ambiguous code;
+- the host shows a room-specific LAN join URL and live public lobby;
+- players join with a validated display name;
+- joins and connection changes appear on the host without a refresh;
+- a private reconnect capability restores the same player after refresh or a
+  brief connection loss instead of creating a duplicate;
+- multiple rooms are isolated, and the lobby has no four-player assumption;
+- the host receives an explicit public projection while each phone receives
+  only its own private session; and
+- host disconnect or server restart closes the ephemeral room.
+
+There is no QR rendering, photo flow, game start, gameplay, role, voting, or
+persistent storage yet.
+
+## Repository layout
+
+```text
+apps/
+  host/         React/Vite public shared-screen lobby
+  controller/   React/Vite private phone join and session confirmation
+  server/       Node HTTP + Socket.IO room authority and LAN discovery
+packages/
+  shared/       Typed wire protocol, validation, and join-URL utilities
+scripts/
+  dev.mjs             Minimal multi-process development launcher
+  smoke-lobby.mjs     Live room/join/reconnect smoke scenario
+```
+
+The repository uses native npm workspaces without a monorepo framework.
+
+## Install and validate
+
+The current toolchain requires Node.js `^20.19.0` or `>=22.12.0`. It was
+implemented and validated with Node.js `v24.15.0` and npm `11.12.1`.
+
+```powershell
+npm.cmd install
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run build
+```
+
+On Windows, `npm.cmd` avoids execution-policy problems that may block
+`npm.ps1`. There is no formatter or linter yet; the current automated gates are
+strict TypeScript, Vitest tests, production builds, and the live smoke scenario.
+
+## Run on the local network
+
+1. Connect the computer and player phones to the same trusted local network.
+2. Start all three processes from the repository root:
+
+   ```powershell
+   npm.cmd run dev
+   ```
+
+3. Open the host at [http://localhost:5183](http://localhost:5183).
+4. Select **Create room**.
+5. Open the displayed player join URL on another browser/device. It uses the
+   form `http://<local-ip>:5184/?room=<room-code>` and prefills the room code.
+6. Enter a display name and join. The player should appear immediately on the
+   host.
+
+The Socket.IO server listens on `0.0.0.0:3101`; the host and player Vite servers
+listen on `0.0.0.0:5183` and `0.0.0.0:5184`. These Morder-specific ports avoid
+colliding with the local Buzz development stack.
+
+If several local addresses exist, the host allows choosing one. If none is
+detected, it shows a browser-hostname fallback and warns when that is loopback.
+Guest-network client isolation, VPN adapters, or a firewall can still prevent a
+phone from reaching the computer. Physical-phone access remains to be tested.
+
+## Live smoke check
+
+With `npm.cmd run dev` running in one terminal, run in another:
+
+```powershell
+npm.cmd run smoke
+```
+
+The smoke scenario checks that both pages respond, two rooms remain isolated,
+five players can join one lobby, invalid rooms are rejected, and a disconnected
+player can reconnect without creating a duplicate.
 
 ## Planned validation sequence
 
@@ -31,20 +105,12 @@ application has been implemented yet.
 4. **M2 — Doctor + Sheriff:** add the initial special roles only after the M1
    playtest provides evidence to continue.
 
-## Repository guide
+## Project records
 
 - [Product](docs/PRODUCT.md) — durable purpose, experience principles, and scope.
-- [Status dashboard](docs/STATUS.md) — current state, milestones, one next task,
-  decisions, and open questions.
-- [Decisions](docs/DECISIONS.md) — choices actually made by the project brief.
-- [Architecture recommendation](docs/ARCHITECTURE.md) — proposed starting
-  technical design; not implemented yet.
+- [Status dashboard](docs/STATUS.md) — verified state, milestones, and one next task.
+- [Decisions](docs/DECISIONS.md) — deliberately accepted choices.
+- [Architecture](docs/ARCHITECTURE.md) — implemented boundaries and future constraints.
 - [Buzz audit](docs/BUZZ_AUDIT.md) — evidence and explicit reuse classification.
-- [Ideas](docs/IDEAS.md) — hypotheses and later possibilities that are not
-  committed work.
+- [Ideas](docs/IDEAS.md) — hypotheses that are not committed work.
 - [Agent guidance](AGENTS.md) — working rules for future repository sessions.
-
-## Development
-
-There is no application toolchain to install or run yet. The recommended first
-implementation task is defined in [Status](docs/STATUS.md#next-task).

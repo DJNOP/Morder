@@ -1,0 +1,194 @@
+:root {
+  color: #f5f3ed;
+  background: #111214;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.player-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1.5rem;
+  padding: 1.1rem;
+  background:
+    radial-gradient(circle at top right, rgb(122 38 49 / 22%), transparent 38%),
+    #111214;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.eyebrow,
+.section-label {
+  margin: 0;
+  color: #bdb7a9;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.connection {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #c9c5bc;
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+.connection > span {
+  flex: 0 0 auto;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 50%;
+  background: #e1ad44;
+}
+
+.connection--connected > span {
+  background: #51c886;
+}
+
+.connection--disconnected > span,
+.connection--error > span {
+  background: #dc5b68;
+}
+
+.join-card,
+.confirmation-card {
+  width: min(100%, 29rem);
+  place-self: center;
+  border: 1px solid #34363b;
+  border-radius: 1rem;
+  padding: clamp(1.35rem, 6vw, 2.25rem);
+  background: rgb(29 30 34 / 94%);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 22%);
+}
+
+h1 {
+  margin: 0.35rem 0 0.75rem;
+  font-size: clamp(2rem, 10vw, 3.2rem);
+  line-height: 1.05;
+}
+
+.join-card > div > p:last-child,
+.confirmation-card > p:not(.section-label) {
+  color: #c9c5bc;
+  line-height: 1.5;
+}
+
+form,
+label {
+  display: grid;
+}
+
+form {
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+label {
+  gap: 0.45rem;
+  color: #d8d4ca;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  border: 1px solid #4a4c52;
+  border-radius: 0.7rem;
+  padding: 0.9rem;
+  background: #151619;
+  color: #f5f3ed;
+  font-size: 1rem;
+}
+
+input[name="roomCode"] {
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+input:focus {
+  border-color: #d7c69d;
+  outline: 2px solid rgb(215 198 157 / 20%);
+}
+
+button {
+  min-height: 3.25rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: #e7d9b8;
+  color: #181612;
+  font-weight: 800;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+.error {
+  margin: 1rem 0 0;
+  color: #ff8993;
+  line-height: 1.45;
+}
+
+.privacy-note {
+  margin: 1.4rem 0 0;
+  color: #888b88;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.confirmation-card {
+  text-align: center;
+}
+
+.confirmation-mark {
+  display: grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  margin: 0 auto 1.2rem;
+  border-radius: 50%;
+  background: #2f9e63;
+  font-size: 1.8rem;
+}
+
+.waiting {
+  margin-top: 1.5rem;
+  border-radius: 0.7rem;
+  padding: 0.9rem;
+  background: #17181b;
+  color: #d8d4ca;
+  font-weight: 700;
+}
+
+footer {
+  overflow: hidden;
+  color: #777b78;
+  font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

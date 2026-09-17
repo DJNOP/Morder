@@ -55,3 +55,33 @@ The Doctor's self-protection/repeated-protection behavior and the tied-vote
 outcome remain hypotheses, not decisions. The recommendation to place the first
 social playtest between M1 and M2 is recorded in the status and audit documents,
 not as an accepted decision.
+
+## D-005 — M0a web architecture
+
+- **Date:** 2026-09-17
+- **Status:** Provisional, implemented for M0
+
+Morder starts as native npm workspaces with separate React/Vite host and phone
+applications, a Node HTTP/Socket.IO server, and a small shared TypeScript
+protocol package. The server is the in-memory authority. Public lobby and
+private player/session payloads are constructed as distinct wire types. Vitest
+covers shared and server behavior. The local defaults are ports 5183 for the
+host, 5184 for the phone, and 3101 for the server so Morder can run alongside
+Buzz's development stack.
+
+This is a practical starting architecture, not a commitment to a monorepo
+framework, deployment platform, database, or generic game engine.
+
+## D-006 — Room-lifetime reconnect identity
+
+- **Date:** 2026-09-17
+- **Status:** Provisional, implemented for M0
+
+A joined phone receives a random reconnect capability stored in that browser's
+Morder-specific local storage. The server alone maps it to the player and room.
+A reconnect restores that same lobby identity and replaces an earlier socket;
+disconnected players remain reserved until the room closes. Host disconnect or
+server restart closes the room and invalidates the capability.
+
+This is ephemeral room identity, not an account or permanent profile. Player
+removal, reconnect expiry, and host recovery remain open design questions.

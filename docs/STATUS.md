@@ -1,104 +1,108 @@
 # Project Dashboard
 
 - **Updated:** 2026-09-17
-- **Phase:** Repository foundation
-- **Implementation state:** Documentation only; no application code exists
+- **Phase:** M0 — Multiplayer skeleton
+- **Implementation state:** M0a room-and-join foundation implemented and verified
 
 ## Current objective
 
-Prepare a clean, evidence-based foundation for Morder and define the first
-focused implementation task without beginning the game.
+Complete M0 through small, testable slices. The room, join, LAN URL, realtime
+lobby, and reconnect foundation now works; the next slice should prove QR-based
+joining on a real phone without adding photos or gameplay.
 
 ## Milestones
 
 | Milestone | Goal | Status |
 | --- | --- | --- |
-| Foundation | Audit Buzz, define product records and architecture recommendation | Complete |
-| M0 — Multiplayer skeleton | Host room, QR join, name, temporary photo, public lobby, start/lock | Not started |
+| Foundation | Audit Buzz, define project records and architecture | Complete |
+| M0a — Room and join foundation | Runnable host/player/server, rooms, names, lobby sync, reconnect | Complete |
+| M0 — Multiplayer skeleton | QR join, name, temporary photo, public lobby, start/lock | In progress |
 | M1 — Minimal playable Murder | Murderer + Civilians through night, discussion, vote, elimination, and result | Not started |
 | First real social playtest | Test social behavior, leakage, usability, and desire for another round | Not started |
 | M2 — Doctor + Sheriff | Add the initial special-role actions and resolution rules | Not started; gated by M1 playtest |
 
-The sequence differs slightly from the initial proposal: the first real social
-playtest is an explicit gate after M1 and before M2. M1 is already the smallest
-playable product test; adding two roles before observing it would increase rule
-and privacy complexity without answering the core product question sooner.
-
 ## Current status
 
-- The empty GitHub repository has been cloned locally and initialized with
-  lightweight project records and working guidance.
-- Buzz's source implementation was inspected at the code state represented by
-  `5638999` (the current `main` implementation). The audit opened on
-  `art/signal-sprint-lighting-station-kit` at `22bf529`, whose additional
-  tracked content was art/design documentation. Another process moved and
-  committed Buzz documentation while this audit ran; no application source
-  changed, and this task made no Buzz writes.
-- Buzz validates the proposed TypeScript, React/Vite, Node, Socket.IO, npm
-  workspace, Vitest, local-network, QR join, and token-reconnect direction.
-- Buzz also demonstrates the boundary Morder must strengthen: the public host
-  must receive a public projection, not a complete game snapshot containing
-  secrets.
-- No package skeleton or dependency lockfile has been created. The stack is a
-  recommendation awaiting implementation, and pinning dependencies now would
-  create files with no runnable behavior to validate.
+- Native npm workspaces now contain separate React/Vite host and phone clients,
+  a Node/Socket.IO server, and a built shared TypeScript protocol package.
+- `npm.cmd run dev` launches all three services after building shared contracts.
+- Hosts create one ephemeral room with a random four-character code. Several
+  rooms can coexist, and updates route only to the owning host.
+- Players join by a validated room code and unique display name. The lobby has
+  no fixed player capacity or four-slot presentation assumption.
+- The host receives an explicitly constructed `PublicLobbyProjection`. A player
+  receives only a private self/session response containing their reconnect
+  capability. Internal room records are not shared protocol types.
+- Reconnect capabilities live in the player browser's local storage. A refresh
+  or brief interruption restores the same player, and a second use replaces the
+  prior socket. Disconnected players remain reserved for the room lifetime;
+  there is intentionally no short expiry policy yet.
+- Host disconnect closes the room, invalidates reconnect capabilities, and
+  notifies connected players. Server restart also loses all rooms.
+- The server discovers usable LAN IPv4 candidates. The host shows a selectable
+  room-specific URL using `?room=<code>`; the player app prefills that code but
+  still requires a display name. Manual code entry remains available.
+- Morder uses ports 5183 (host), 5184 (player), and 3101 (server), avoiding the
+  active Buzz development stack on 5173/5174/3001.
+- QR rendering, player photos, lobby start/lock, and all gameplay remain
+  unimplemented.
+
+## Verification status
+
+| Check | Result |
+| --- | --- |
+| Dependency install | `npm.cmd install` completed; 90 packages audited, 0 vulnerabilities reported. |
+| Type safety | `npm.cmd run typecheck` passed for all four workspaces. |
+| Automated tests | `npm.cmd test` passed: 20 server/domain/integration tests and 5 shared URL tests. |
+| Production build | `npm.cmd run build` passed for shared, server, host, and controller. |
+| Root development command | `npm.cmd run dev` launched server, host, and player services on the documented ports. |
+| Live smoke | `npm.cmd run smoke` passed against running services: both pages, two isolated rooms, five-player lobby, invalid-room rejection, disconnect, and identity-preserving reconnect. |
+| Browser flow | Manually verified room creation, LAN join URL, URL-prefilled join, realtime host update, player confirmation, refresh recovery, and no duplicate lobby entry. |
+| Physical phone/LAN | Not verified. The LAN address and all-interface bindings were mechanically observed, but no separate physical device was available. |
 
 ## Next task
 
-### M0a — Implement the runnable room and join foundation
+### M0b — Add QR joining and run the physical LAN acceptance check
 
-**Purpose:** Establish the smallest server-authoritative vertical slice on
-which the M0 photo lobby can be built.
-
-**Context:** Buzz proves the basic stack and room mechanics. Morder should copy
-and adapt those ideas, not depend on Buzz or inherit its four-player game
-assumptions.
+**Purpose:** Remove manual link entry and prove that a real phone can reach the
+existing Morder room over the local network.
 
 **Scope:**
 
-- create npm workspaces for `apps/host`, `apps/controller`, `apps/server`, and
-  `packages/shared`;
-- add strict TypeScript, React/Vite host and controller entry points, Node with
-  Socket.IO, Vitest, and one root development command;
-- let a host create one ephemeral room with a short code;
-- let several phone/browser clients join with unique validated display names;
-- show the authoritative public roster on the host;
-- issue a private random reconnect capability to each joined player and restore
-  the same identity after a brief browser/network interruption;
-- define distinct internal room state, public-host projection, and private
-  player-session/projection types even though roles do not exist yet; and
-- cover room isolation, invalid joins, reconnect-token privacy, replacement
-  socket behavior, and host-disconnect cleanup with automated tests.
+- render a local high-contrast QR code for the existing selected player join
+  URL using the focused Buzz-proven approach;
+- keep the visible room code, copyable URL, address selector, and manual code
+  entry as fallbacks;
+- add focused tests for QR input/link behavior where useful;
+- scan the QR with at least one real phone on the same LAN;
+- join, refresh, briefly interrupt the connection, and confirm the host lobby
+  reflects the same player identity; and
+- record actual firewall, VPN, guest-network, or camera issues encountered.
 
 **Constraints:**
 
-- no game phases, roles, night actions, voting, QR UI, or photo upload yet;
-- no Buzz package dependency or cross-repository shared package;
-- no hard-coded four-player capacity or four-slot visual identity model;
-- no secret or reconnect capability in the public-host projection;
-- no database, accounts, deployment, or production styling; and
-- do not treat a client-supplied room ID, player ID, or role as authoritative.
+- no player photos, camera upload, game start, roles, phases, voting, or visual
+  identity work;
+- the QR contains only the public player URL and room code, never a reconnect
+  capability; and
+- do not alter firewall/network settings automatically.
 
 **Acceptance checks:**
 
-- a root command starts the server and both browser surfaces on the local
-  machine;
-- one host can create a room and at least three independent clients can join;
-- joins in one room never update another room;
-- the host roster reflects join, disconnect, and successful reconnect;
-- serialized host events never contain reconnect capabilities or a placeholder
-  for future private game state;
-- malformed and unauthorized events fail safely; and
-- typecheck, tests, and production builds pass.
+- a real phone camera opens the correct `http://<local-ip>:5184/?room=<code>`
+  URL;
+- the room code is prefilled and the player joins without manually entering it;
+- the host updates without refresh;
+- manual joining still works when QR scanning is unavailable; and
+- typecheck, tests, build, live smoke, and the documented physical check pass.
 
-**Stop condition:** Stop when this tested room/join slice works. Do not continue
-into QR generation, photos, lobby design, role assignment, or gameplay in the
-same task.
+**Stop condition:** Stop after QR joining and real-device LAN reachability are
+verified and documented. Do not continue into the photo flow.
 
 ## Decisions
 
-Only decisions established by the project brief are summarized here. Full
-records are in [Decisions](DECISIONS.md).
+Only deliberate decisions are summarized here. Full records are in
+[Decisions](DECISIONS.md).
 
 - Morder is an in-person shared-screen game with browser phones as private
   controllers.
@@ -106,34 +110,30 @@ records are in [Decisions](DECISIONS.md).
   projections.
 - The first target is ephemeral local multiplayer without accounts or long-term
   photo storage.
+- The M0a foundation uses separate React/Vite host and phone clients, a
+  Node/Socket.IO authority, strict TypeScript, native npm workspaces, and
+  Vitest.
+- Lobby reconnect identities last for the in-memory room lifetime and replace
+  an earlier socket; they are not permanent users.
 - M1 uses one Murderer and otherwise Civilians; M2 is limited to Doctor and
   Sheriff additions.
-
-The recommended web stack and exact reconnect/photo policies are not yet logged
-as accepted decisions.
 
 ## Open questions
 
 - What minimum and maximum player counts should M0 and M1 support?
-- Is local-network-only operation acceptable for the first playtest, including
-  router client-isolation and firewall friction?
-- How long should a player identity remain reconnectable in the lobby and
-  during an active game?
+- When should a host be allowed to remove an abandoned lobby identity?
 - Should host refresh close the room initially, or is host recovery required
-  before the first playtest?
+  before the first social playtest?
+- What minimum photo crop, resolution, byte limit, and fallback avatar are
+  sufficient on real phones?
 - What neutral night interaction should Civilians perform so phone use does not
   reveal special roles?
 - Should night phases use a fixed timer, a hidden completion delay, or another
   cadence that does not reveal the final actor?
-- Should target lists include eliminated players, self, or only currently valid
-  targets for each action?
-- What minimum photo crop, resolution, byte limit, and fallback avatar are
-  sufficient on real phones?
 - Are Doctor self-protection, repeated protection, and no elimination on a tied
   vote the right initial rules?
-- What public announcement should follow a prevented murder?
-- How should disconnected or absent players affect night resolution, voting,
-  and win conditions?
+- How should disconnected or absent players affect actions, voting, and win
+  conditions once gameplay exists?
 
 ## Ideas / later
 
@@ -148,12 +148,8 @@ These are deliberately not current scope and are not GitHub work items.
 ## Lightweight GitHub workflow
 
 Use GitHub issues only for the one or few concrete tasks currently ready to be
-worked. Copy the `Next task` specification above into the first implementation
-issue when work begins. Each issue should contain purpose, context, scope,
-constraints, acceptance checks, and a stop condition.
-
-Keep hypotheses and possibilities in `docs/IDEAS.md`; promote one to an issue
-only after a decision or playtest makes it actionable. Use milestone labels
-such as `M0`, `M1`, and `M2`, plus a simple status label if useful. Do not add a
-Projects board until simultaneous work makes the repository and issue list
-insufficient.
+worked. Each issue should contain purpose, context, scope, constraints,
+acceptance checks, and a stop condition. Keep hypotheses in `docs/IDEAS.md` and
+promote one only after a decision or playtest makes it actionable. A Projects
+board is unnecessary while one status document and a small issue list remain
+clear.

@@ -1,0 +1,27 @@
+{
+  "name": "morder",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run build --workspace @morder/shared && npm run test --workspaces --if-present",
+    "build": "npm run build --workspace @morder/shared && npm run build --workspace @morder/server && npm run build --workspace @morder/host && npm run build --workspace @morder/controller",
+    "smoke": "node scripts/smoke-lobby.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.0.5",
+    "tsx": "^4.23.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.10"
+  }
+}

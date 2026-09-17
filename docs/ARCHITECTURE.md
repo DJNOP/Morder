@@ -1,14 +1,17 @@
-# Starting Architecture Recommendation
+# Architecture
 
 ## Status
 
-This is the recommended architecture derived from the Buzz audit. It is not
-implemented and is not an accepted permanent stack decision. The recommendation
-optimizes for the first in-room playtest, not theoretical scale.
+The M0a room-and-join foundation implements the repository, transport, room,
+projection, reconnect, local-network, and testing boundaries described here.
+Game, role, voting, and photo sections remain forward constraints rather than
+implemented functionality. The architecture optimizes for the first in-room
+playtest, not theoretical scale.
 
 ## Repository and runtime shape
 
-Use native npm workspaces with the same coarse boundaries that worked in Buzz:
+The repository uses native npm workspaces with the same coarse boundaries that
+worked in Buzz:
 
 ```text
 apps/
@@ -19,10 +22,12 @@ packages/
   shared/       TypeScript wire contracts, validation, and URL utilities
 ```
 
-Use strict TypeScript, React, Vite, Socket.IO, and Vitest. Retain a small
-repository-owned development launcher rather than adding a monorepo framework.
-Keep fixed local development ports initially and derive the Socket.IO server
-hostname from the page host, with an optional environment override.
+It uses strict TypeScript, React, Vite, Socket.IO, and Vitest. A small
+repository-owned launcher builds shared contracts and starts the three runtime
+workspaces without a monorepo framework. Morder uses fixed local ports 5183
+(host), 5184 (phone/player), and 3101 (server), distinct from Buzz's active
+development ports. Both clients derive the Socket.IO hostname from the page
+host, with an optional `VITE_SERVER_URL` override.
 
 Do not make Morder depend on Buzz. Copy the small proven pieces that remain
 appropriate, rename them, remove game-specific fields, and add Morder tests.
@@ -39,13 +44,16 @@ Internal room/game state
   └─ playerProjection(room, playerId) → only that player's socket
 ```
 
-The internal state may contain membership, reconnect capabilities, roles,
-night actions, vote choices, investigation results, timers, and win state.
-None of those fields should automatically become protocol types.
+M0a internal state contains host/socket indexes, membership, and reconnect
+capabilities. Future internal state may add roles, night actions, vote choices,
+investigation results, timers, and win state. None of those fields should
+automatically become protocol types.
 
-Define separate wire types rather than `Omit`-ing secrets from one large shared
-type. Explicit construction makes a newly added internal field private by
-default and forces a deliberate choice before it crosses the network.
+M0a defines separate `PublicLobbyProjection`, `PublicLobbyPlayer`,
+`PrivatePlayerIdentity`, and `PlayerSession` wire types rather than `Omit`-ing
+secrets from one large shared type. Explicit construction makes a newly added
+internal field private by default and forces a deliberate choice before it
+crosses the network.
 
 ### Public host projection
 
@@ -80,22 +88,26 @@ Keep three focused layers:
    identity from the socket, invokes room/game operations, and emits only the
    correct projection.
 
-M0 needs only the first and third layers plus empty projection boundaries. Add
-the focused Murder game module in M1. Do not build a generic role plugin system,
-event-sourcing layer, or state-machine framework.
+M0a implements the room/session manager and Socket.IO adapter. There is no game
+engine or placeholder game state. Add the focused Murder game module in M1. Do
+not build a generic role plugin system, event-sourcing layer, or state-machine
+framework.
 
 ## Shared protocol
 
-`packages/shared` should contain event names, request/acknowledgement and
+`packages/shared` contains only event names, request/acknowledgement and
 projection types, small runtime validators, room-code/name normalization, and
-join-URL helpers. It must not export the internal authoritative state type.
+join-URL helpers. It does not export the internal authoritative state type.
 
-Prefer explicit event families, for example:
+The current event families are deliberately small:
 
-- host create/start requests and public room/game snapshots;
-- player join/reconnect/photo/action/vote requests;
-- recipient-specific player snapshots; and
-- public room-closed or recoverable-error notices.
+- host room creation and LAN-address requests;
+- player join and reconnect requests;
+- public host lobby snapshots; and
+- player room-closed notices.
+
+Future start, game, photo, action, and vote events should extend these recipient
+boundaries rather than broadening the current lobby payload.
 
 Use integration/type tests to prove event routing and serialized secret
 absence. A test should fail if a Civilian or public host payload contains role
@@ -103,40 +115,43 @@ maps, private targets, votes, reconnect tokens, or another player's result.
 
 ## Room lifecycle and identity
 
-- Generate a short, non-ambiguous room code with collision handling.
-- Keep rooms in memory for the first prototype.
-- Issue each joined player a cryptographically random reconnect capability and
-  store it in that phone browser's local storage under a Morder-specific key.
-- Associate all commands with the server-side socket-to-player index.
-- A successful reconnect replaces the old socket and restores the same player,
-  role, life state, and pending/submitted action state.
-- Closing the room when the host disconnects is acceptable initially; host
-  recovery remains an explicit open question.
-- Do not copy Buzz's hard-coded four-player capacity or 20-second in-game seat
-  expiry. Morder's player count is unresolved, and an active game's role must
-  not disappear because a phone was offline briefly. A lobby cleanup grace and
-  active-game retention policy should be chosen deliberately.
-- Server restart may end all rooms in the prototype.
+- The server generates a short non-ambiguous room code and retries collisions.
+- Rooms exist only in server memory. A server restart ends them.
+- Each joined player receives a cryptographically random reconnect capability.
+  The phone stores it under the Morder-specific local-storage key
+  `morder:player-session:v1`; the host and other players never receive it.
+- The server associates every current socket with its room/player identity.
+  Clients do not submit a trusted player ID for lobby operations.
+- Reconnect restores the same player and replaces an earlier socket. A late
+  disconnect from the replaced socket cannot mark the new connection offline.
+- A disconnected lobby player remains reserved for the room lifetime. There is
+  no copied Buzz-style short seat expiry and no fixed four-player capacity.
+- Host disconnect closes the room, invalidates its reconnect capabilities, and
+  notifies connected players. Whether host refresh should recover a room is an
+  explicit open question.
 
-Room isolation, host authority, reconnect replacement, expiry behavior, stale
-timer safety, and disposal must be covered by deterministic tests.
+M0a tests cover room isolation, host authority, reconnect replacement, late
+disconnect safety, public token absence, and disposal. A deliberate player
+removal/expiry policy is still needed before one is implemented.
 
 ## Joining and local-network play
 
-Reuse Buzz's approach:
+M0a implements the reusable parts of Buzz's local-network approach:
 
 - bind the server and both Vite development servers to `0.0.0.0`;
 - discover usable local IPv4 addresses on the server without depending on
   adapter names;
-- let the host select among plausible addresses;
-- render a high-contrast QR code locally in the host browser;
-- put only the controller URL and room code in the QR—not a player capability;
+- let the host select among plausible addresses and display a copyable
+  room-specific player URL;
 - prefill but do not auto-submit the room join; and
 - preserve manual room-code entry as the reliable fallback.
 
-The first physical acceptance pass must cover a real camera, several phones,
-guest-network/client-isolation behavior, VPN adapters, Windows firewall prompts,
-reload, brief network loss, and host closure.
+M0b should render that existing public URL as a high-contrast QR code locally
+in the host browser. The QR must contain only the player URL and room code, not
+a reconnect capability. Local all-interface binding and browser behavior have
+been verified, but real-phone reachability has not. The physical acceptance
+pass should cover a real camera, reload, brief network loss, and any firewall,
+VPN, guest-network, or client-isolation problems actually encountered.
 
 ## Temporary player photos
 
@@ -167,14 +182,17 @@ different trust projections, screen constraints, and interaction goals. Within
 each, use small feature components rather than importing Buzz's coupled
 `App.tsx` files or visual system.
 
-Useful initial boundaries are:
+M0a currently provides:
 
-- host: connection status, create-room action, join/QR card, public lobby,
-  player/photo card, and start/lock action;
-- controller: connection status, join form, photo capture/preview/submit,
-  private session shell, and later phase/action screens; and
-- shared frontend helpers only when duplication becomes real. Do not create a
-  design-system package for M0.
+- host: connection status, create-room action, LAN-address selection, copyable
+  join URL, and a live public lobby with connected/disconnected state; and
+- controller: connection status, URL-prefilled/manual join form, join errors,
+  private session confirmation, stored reconnect session, refresh restoration,
+  and room-closed handling.
+
+QR, photo, and start/lock components do not exist yet. Add them as focused
+feature components when their M0 slice begins. There is no shared frontend or
+design-system package; introduce a shared helper only after real duplication.
 
 Private phone state must be cleared or replaced when reconnect restoration
 fails or the room closes. Avoid logging protocol payloads containing role or
@@ -198,6 +216,14 @@ Use the proven Buzz test shape, adapted to hidden information:
 - **Physical checks:** QR scan, camera/file chooser, photo performance, several
   real phones, television readability, network friction, and interaction
   leakage. Automated tests cannot replace this evidence.
+
+M0a currently has 25 automated tests across shared URL behavior, room codes,
+network-address filtering, room/session behavior, Socket.IO routing, malformed
+and unauthorized events, room isolation, more than four players, public token
+absence, and reconnect replacement. The repository smoke test starts from the
+real HTTP/Socket.IO surfaces and checks two rooms, five joins, invalid-room
+rejection, disconnect, and identity-preserving reconnect. The host/player flow
+was also exercised in real browser UIs; a physical phone remains unverified.
 
 Inject clocks, randomness, schedulers, and role allocation into the M1 game
 module so night, discussion, vote, and tie behavior can be tested without real
