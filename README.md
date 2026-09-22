@@ -175,6 +175,44 @@ about 80 seconds because it uses the production timers.
    leakage, comprehension, timing, network friction, and desire for another
    round before expanding scope.
 
+## Development workflow
+
+Start with the outcome agreed with Nicholas and the current product/decision
+records. Reuse [Project #3](https://github.com/users/DJNOP/projects/3) and relevant
+existing items after verifying identity, association, and status. Ideas and
+future roles are not implementation authority.
+
+1. Record the agreed outcome, scope, hard constraints, and acceptance evidence
+   in the relevant issue/item; implementation suggestions remain adaptable.
+2. Complete inspection, implementation, necessary supporting changes, focused
+   validation, rendered review, and ordinary corrections as one work package.
+   Use the existing `Now` state for authorised active work and keep progress and
+   the next unfinished step in `docs/STATUS.md`.
+3. Deliver the validated candidate as a draft PR with branch/commit, actual
+   checks, non-private evidence, uncertainty, and local test steps. Routine
+   branches, scoped commits, non-force feature-branch pushes, and linked tracking
+   updates are included unless explicitly local-only.
+4. Nicholas reviews and accepts, then authorises integration. Keep `Now` and add
+   a review-pending note while awaiting review; do not invent a column. Tests or
+   a draft PR do not authorise `Done`, issue closure, merge, or deployment.
+
+For UI work, establish the in-room player task and accepted information model.
+Reuse `START_MORDER.cmd` / `STOP_MORDER.cmd` and the existing smoke/validation
+flows with synthetic players/photos. Inspect public host/TV and isolated phone
+sessions at relevant sizes. Check applicable focus/accessibility, loading/error,
+phase/waiting/elimination, selection versus confirmation, deadlines, outcomes,
+and reconnect states. Verify that public and private projections contain only
+authorised information; do not hide received secrets with styling. Reconcile
+rule, early-advancement, Civilian, and public announcement changes with accepted
+decisions before treating them as presentation work.
+
+Distinguish build/type checks, deterministic rules/privacy tests, rendered visual
+review, and physical social playtesting. Only the latter can establish in-room
+pacing, covert interaction leakage, phone friction, and willingness to replay.
+Fix demonstrated in-scope defects; use relevant installed skills and existing
+tools without requiring a design skill for every edit. Preserve temporary-photo
+boundaries and stop at the agreed outcome.
+
 ## Project records
 
 - [Product](docs/PRODUCT.md) — durable purpose, experience principles, and scope.

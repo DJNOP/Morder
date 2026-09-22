@@ -212,3 +212,14 @@ promote one only after a decision or playtest makes it actionable. Use the
 [Morder Development project](https://github.com/users/DJNOP/projects/3) as the
 lightweight visual overview; `docs/STATUS.md` remains the detailed source of
 truth.
+
+## Workflow setup candidate — 2026-09-22
+
+Personal development guidance now records coherent work packages, ordinary corrections,
+routine GitHub delivery, review before acceptance/integration, and separate rules/privacy,
+rendered, and physical social-playtest evidence. The repository fallback is Terra Medium;
+explicit task selection takes precedence. Diff/link review passed; no app or physical
+playtest was run for these documentation/configuration edits. This setup branch is a
+review candidate and does not replace unpublished gameplay or accepted rule decisions
+in the normal checkout. Next setup step: review the draft PR, authorise integration,
+and load the resulting checkout in a new task. Product priorities above are unchanged.
