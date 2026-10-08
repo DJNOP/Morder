@@ -1,7 +1,8 @@
 # Agent Instructions
 
-- Before substantial work, read `docs/STATUS.md`, `docs/PRODUCT.md`,
-  `docs/DECISIONS.md`, and the relevant sections of `docs/ARCHITECTURE.md`.
+- Before substantial work, read `docs/STATUS.md`, then only the sections of
+  `docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, and `docs/DECISIONS.md` that the
+  task touches; widen only when a conflict or gap appears.
 - Inspect the actual branch/worktree, Git status, relevant files, and nested/override
   instructions before editing. Preserve unrelated and unpublished work; isolate setup
   or documentation changes when implementation is active.

@@ -217,9 +217,19 @@ truth.
 
 Personal development guidance now records coherent work packages, ordinary corrections,
 routine GitHub delivery, review before acceptance/integration, and separate rules/privacy,
-rendered, and physical social-playtest evidence. The repository fallback is Terra Medium;
-explicit task selection takes precedence. Diff/link review passed; no app or physical
+rendered, and physical social-playtest evidence. The repository fallback was Terra Medium
+(removal is proposed in the candidate below). Diff/link review passed; no app or physical
 playtest was run for these documentation/configuration edits. This setup branch is a
 review candidate and does not replace unpublished gameplay or accepted rule decisions
 in the normal checkout. Next setup step: review the draft PR, authorise integration,
 and load the resulting checkout in a new task. Product priorities above are unchanged.
+
+## Workflow controls candidate — 2026-10-08
+
+Unmerged candidate on `codex/workflow-controls-20261008` (base `b281be2`): adds
+`.github/workflows/ci.yml` (Node 24; `npm ci`, shared build, typecheck, tests,
+production build; `contents: read`; pull requests and pushes to `main`; job
+`verify`), removes the model/effort overrides from `.codex/config.toml` so user
+settings apply, and makes the AGENTS startup reading selective. The live smoke
+scenario is not in CI because it needs running services. Not yet reviewed or
+published; product status and the next task above are unchanged.
