@@ -113,6 +113,9 @@ npm.cmd run build
 On Windows, `npm.cmd` avoids execution-policy problems that may block
 `npm.ps1`. There is no formatter or linter yet; the current automated gates are
 strict TypeScript, Vitest tests, production builds, and the live smoke scenario.
+GitHub Actions CI runs `npm ci`, the shared build, typecheck, tests, and the
+production build on a clean Node 24 checkout; the smoke scenario needs running
+services and stays local.
 
 ## Command-line development and local-network play
 
