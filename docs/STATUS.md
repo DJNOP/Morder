@@ -213,7 +213,25 @@ promote one only after a decision or playtest makes it actionable. Use the
 lightweight visual overview; `docs/STATUS.md` remains the detailed source of
 truth.
 
-## Workflow setup candidate — 2026-09-22
+## Current workflow behavior
+
+Current for this checkout (workflow PR [#5](https://github.com/DJNOP/Morder/pull/5),
+branch `codex/workflow-controls-20261008`): agent startup reads this status and only
+the relevant `PRODUCT`/`ARCHITECTURE`/`DECISIONS` sections; `.codex/config.toml`
+no longer overrides model or effort, so user settings apply; and
+`.github/workflows/ci.yml` (job `verify`: Node 24, `npm ci`, shared build,
+typecheck, tests, production build; read-only permissions) is a real workflow
+definition. Evidence: the exact-head review and a passing `verify` check on
+`34e98b0` were recorded on 2026-10-08. The live smoke scenario is not part of CI.
+Current integration status comes from the PR and Git, not from this file. No
+scientific, rendered, or physical playtest acceptance is implied; the product
+priorities and the next task above are unchanged.
+
+The two candidate blocks below are dated historical checkpoints. Their
+"unmerged", "not yet reviewed or published", and "next setup step" wording
+described the state when they were written and is superseded by the note above.
+
+## Workflow setup candidate — 2026-09-22 (historical)
 
 Personal development guidance now records coherent work packages, ordinary corrections,
 routine GitHub delivery, review before acceptance/integration, and separate rules/privacy,
@@ -224,7 +242,7 @@ review candidate and does not replace unpublished gameplay or accepted rule deci
 in the normal checkout. Next setup step: review the draft PR, authorise integration,
 and load the resulting checkout in a new task. Product priorities above are unchanged.
 
-## Workflow controls candidate — 2026-10-08
+## Workflow controls candidate — 2026-10-08 (historical checkpoint)
 
 Unmerged candidate on `codex/workflow-controls-20261008` (base `b281be2`): adds
 `.github/workflows/ci.yml` (Node 24; `npm ci`, shared build, typecheck, tests,
