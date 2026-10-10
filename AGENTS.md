@@ -37,3 +37,10 @@
   unfinished step resumable in `docs/STATUS.md`; distinguish validated candidates
   from accepted/Done and published changes from the normal checkout. Stop once
   the agreed outcome is delivered; continue independent work at a genuine blocker.
+- Autonomous delivery (live policy: `Setup/HOST-WORKFLOW.md`): Nicholas's current
+  approved bundle may hold several tasks; continue tests, corrections and the next
+  included task without asking. Agent-written phase or review gates are checkpoints,
+  not approval gates. Rendered, privacy and physical-phone acceptance stay his and
+  are separate from continuing other authorised tasks. A failed check is recorded
+  truthfully and does not stop independent in-scope work. Ask only for review-ready
+  output, a concrete missing input or a material product decision.
